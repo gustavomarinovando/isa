@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}Iniciar Sesión{% endblock title %}
+
+{% block content %}
+<div class="flex items-center justify-center min-h-[calc(100vh-200px)]">
+    <div class="w-full max-w-md p-8 space-y-6 bg-white rounded-xl shadow-lg">
+        <h2 class="text-3xl font-bold text-center text-gray-900">Iniciar Sesión</h2>
+        
+        {% if form.errors %}
+            <div class="p-4 mb-4 text-sm text-red-700 bg-red-100 rounded-lg" role="alert">
+                <span class="font-medium">Error:</span> Por favor corrija los errores abajo.
+                {{ form.non_field_errors }}
+            </div>
+        {% endif %}
+
+        <form method="post" action="{% url 'login' %}" class="space-y-6">
+            {% csrf_token %}
+            
+            <div>
+                <label for="id_username" class="block text-sm font-medium text-gray-700">Usuario</label>
+                <input type="text" name="username" id="id_username" required
+                       class="mt-1 block w-full px-4 py-2 border {% if form.username.errors %}border-red-500{% else %}border-gray-300{% endif %} rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                       placeholder="Su nombre de usuario">
+                {% if form.username.errors %}
+                    <p class="mt-2 text-sm text-red-600">{{ form.username.errors|join:", " }}</p>
+                {% endif %}
+            </div>
+            
+            <div>
+                <label for="id_password" class="block text-sm font-medium text-gray-700">Contraseña</label>
+                <input type="password" name="password" id="id_password" required
+                       class="mt-1 block w-full px-4 py-2 border {% if form.password.errors %}border-red-500{% else %}border-gray-300{% endif %} rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                       placeholder="Su contraseña">
+                {% if form.password.errors %}
+                    <p class="mt-2 text-sm text-red-600">{{ form.password.errors|join:", " }}</p>
+                {% endif %}
+            </div>
+            
+            <input type="hidden" name="next" value="{{ request.GET.next | default:'/' }}">
+            
+            <div>
+                <button type="submit"
+                        class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                    Ingresar
+                </button>
+            </div>
+        </form>
+        </div>
+</div>
+{% endblock content %}

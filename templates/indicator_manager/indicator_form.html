@@ -1,0 +1,336 @@
+{% extends "base.html" %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}
+    Administrar: {{ object.name|default:"Nuevo Indicador" }}
+{% endblock title %}
+
+{% block extra_head %}
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+<style>
+    .prose-sm p, .prose-sm ul, .prose-sm li { margin-top: 0.25em; margin-bottom: 0.25em; }
+    .checkbox-multiple-compact .flex { margin-bottom: 0.1rem; }
+    .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 3px;}
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #c7c7c7; border-radius: 3px;}
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #a3a3a3; }
+    [x-cloak] { display: none !important; } 
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto" 
+     x-data="{ 
+        historyContentOpen: false, {# History at bottom starts collapsed #}
+        logsExist: {% if change_logs %}true{% else %}false{% endif %} {# Initialize logsExist based on Django context #}
+     }"> 
+    
+    <div class="space-y-8"> {# Vertical spacing between main sections #}
+        <div class="bg-white p-6 sm:p-8 rounded-xl shadow-xl"> {# Removed mb-8 from main form container #}
+            <div class="flex justify-between items-center mb-6 pb-4 border-b border-gray-200">
+                <h1 class="text-2xl sm:text-3xl font-semibold text-gray-800 flex items-start">
+                    <i class="fas fa-edit text-primary mr-3 pt-1"></i> {# pt-1 for slight visual alignment with the first line of text #}
+                    {% if object %}
+                        <div class="flex flex-col">
+                            <span>Administrar Indicador:</span>
+                            <span class="text-primary">{{ object.name }}</span>
+                        </div>
+                    {% else %}
+                        <span>Crear Nuevo Indicador</span>
+                    {% endif %}
+                </h1>
+                <a href="{% url 'indicator_manager:dashboard' %}"
+                   class="text-sm text-primary hover:text-primary-hover font-medium flex items-center"> {# Reverted to text-primary #}
+                    <i class="fas fa-arrow-left mr-2"></i> Volver al Dashboard
+                </a>
+            </div>
+
+            <form method="post" class="space-y-6">
+                {% csrf_token %}
+                
+                <fieldset class="space-y-4">
+                    <legend class="text-lg font-medium text-gray-700 pb-1 mb-3 border-b border-gray-200 w-full">Información Básica</legend>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                        <div>
+                            <label for="{{ form.number.id_for_label }}" class="block text-sm font-medium text-gray-700">{{ form.number.label }} {% if form.number.field.required %}<span class="text-red-500">*</span>{% endif %}</label>
+                            {{ form.number }}
+                            {% if form.number.help_text %}<p class="mt-1 text-xs text-gray-500">{{ form.number.help_text|safe }}</p>{% endif %}
+                            {% for error in form.number.errors %}<p class="mt-1 text-sm text-red-600">{{ error }}</p>{% endfor %}
+                        </div>
+                        <div>
+                            <label for="{{ form.name.id_for_label }}" class="block text-sm font-medium text-gray-700">{{ form.name.label }} {% if form.name.field.required %}<span class="text-red-500">*</span>{% endif %}</label>
+                            {{ form.name }}
+                            {% if form.name.help_text %}<p class="mt-1 text-xs text-gray-500">{{ form.name.help_text|safe }}</p>{% endif %}
+                            {% for error in form.name.errors %}<p class="mt-1 text-sm text-red-600">{{ error }}</p>{% endfor %}
+                        </div>
+                        <div class="md:col-span-2">
+                            <label for="{{ form.description.id_for_label }}" class="block text-sm font-medium text-gray-700">{{ form.description.label }}</label>
+                            {{ form.description }}
+                            {% if form.description.help_text %}<p class="mt-1 text-xs text-gray-500">{{ form.description.help_text|safe }}</p>{% endif %}
+                            {% for error in form.description.errors %}<p class="mt-1 text-sm text-red-600">{{ error }}</p>{% endfor %}
+                        </div>
+                        <div class="flex items-center pt-2 md:col-span-2">
+                            {{ form.shown_to_board }}
+                            <label for="{{ form.shown_to_board.id_for_label }}" class="ml-2 text-sm font-medium text-gray-700">{{ form.shown_to_board.label }}</label>
+                            {% for error in form.shown_to_board.errors %}<p class="ml-2 text-sm text-red-600">{{ error }}</p>{% endfor %}
+                        </div>
+                    </div>
+                </fieldset>
+
+                <fieldset class="space-y-4 pt-4 mt-4 border-t border-gray-200">
+                    <legend class="text-lg font-medium text-gray-700 pb-1 mb-3 border-b border-gray-200 w-full">Relaciones y Responsabilidad</legend>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                        <div>
+                            <label for="{{ form.academic_objective.id_for_label }}" class="block text-sm font-medium text-gray-700">{{ form.academic_objective.label }}</label>
+                            {{ form.academic_objective }}
+                            {% for error in form.academic_objective.errors %}<p class="mt-1 text-sm text-red-600">{{ error }}</p>{% endfor %}
+                        </div>
+                        <div>
+                            <label for="{{ form.sgc_objective.id_for_label }}" class="block text-sm font-medium text-gray-700">{{ form.sgc_objective.label }}</label>
+                            {{ form.sgc_objective }}
+                            {% for error in form.sgc_objective.errors %}<p class="mt-1 text-sm text-red-600">{{ error }}</p>{% endfor %}
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">{{ form.responsible_persons.label }}</label>
+                            <div class="border border-gray-300 rounded-md p-3 max-h-48 overflow-y-auto checkbox-multiple-compact custom-scrollbar">
+                                <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                                {% for choice in form.responsible_persons %}
+                                    <div class="flex items-center">
+                                        {{ choice.tag }}
+                                        <label for="{{ choice.id_for_label }}" class="ml-2 text-sm text-gray-700 select-none">{{ choice.choice_label }}</label>
+                                    </div>
+                                {% endfor %}
+                                </div>
+                            </div>
+                            {% if form.responsible_persons.help_text %}<p class="mt-1 text-xs text-gray-500">{{ form.responsible_persons.help_text|safe }}</p>{% endif %}
+                            {% for error in form.responsible_persons.errors %}<p class="mt-1 text-sm text-red-600">{{ error }}</p>{% endfor %}
+                        </div>
+                    </div>
+                </fieldset>
+                
+                <fieldset class="space-y-2 pt-4 mt-4 border-t border-gray-200">
+                    <legend class="text-lg font-medium text-gray-700 pb-1 mb-3 border-b border-gray-200 w-full">Calendario de Revisión</legend>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">{{ form.review_months.label }}</label>
+                        <div class="border border-gray-300 rounded-md p-3 max-h-48 overflow-y-auto checkbox-multiple-compact custom-scrollbar">
+                            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                            {% for choice in form.review_months %}
+                                <div class="flex items-center">
+                                    {{ choice.tag }}
+                                    <label for="{{ choice.id_for_label }}" class="ml-2 text-sm text-gray-700 select-none">{{ choice.choice_label }}</label>
+                                </div>
+                            {% endfor %}
+                            </div>
+                        </div>
+                        {% if form.review_months.help_text %}<p class="mt-1 text-xs text-gray-500">{{ form.review_months.help_text|safe }}</p>{% endif %}
+                        {% for error in form.review_months.errors %}<p class="mt-1 text-sm text-red-600">{{ error }}</p>{% endfor %}
+                    </div>
+                </fieldset>
+
+                <fieldset class="space-y-4 pt-4 mt-4 border-t border-gray-200">
+                    <legend class="text-lg font-medium text-gray-700 pb-1 mb-3 border-b border-gray-200 w-full">Configuración de Dashboards y Datos</legend>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                        <div>
+                            <label for="{{ form.powerbi_url_token.id_for_label }}" class="block text-sm font-medium text-gray-700">{{ form.powerbi_url_token.label }}</label>
+                            {{ form.powerbi_url_token }}
+                            {% if form.powerbi_url_token.help_text %}<p class="mt-1 text-xs text-gray-500">{{ form.powerbi_url_token.help_text|safe }}</p>{% endif %}
+                            {% for error in form.powerbi_url_token.errors %}<p class="mt-1 text-sm text-red-600">{{ error }}</p>{% endfor %}
+                        </div>
+                        <div>
+                            <label for="{{ form.local_dash_url.id_for_label }}" class="block text-sm font-medium text-gray-700">{{ form.local_dash_url.label }}</label>
+                            {{ form.local_dash_url }}
+                            {% if form.local_dash_url.help_text %}<p class="mt-1 text-xs text-gray-500">{{ form.local_dash_url.help_text|safe }}</p>{% endif %}
+                            {% for error in form.local_dash_url.errors %}<p class="mt-1 text-sm text-red-600">{{ error }}</p>{% endfor %}
+                        </div>
+                        <div>
+                            <label for="{{ form.external_file_url.id_for_label }}" class="block text-sm font-medium text-gray-700">{{ form.external_file_url.label }}</label>
+                            {{ form.external_file_url }}
+                            {% if form.external_file_url.help_text %}<p class="mt-1 text-xs text-gray-500">{{ form.external_file_url.help_text|safe }}</p>{% endif %}
+                            {% for error in form.external_file_url.errors %}<p class="mt-1 text-sm text-red-600">{{ error }}</p>{% endfor %}
+                        </div>
+                         <div>
+                            <label for="{{ form.data_ingestion_model_name.id_for_label }}" class="block text-sm font-medium text-gray-700">{{ form.data_ingestion_model_name.label }}</label>
+                            {{ form.data_ingestion_model_name }}
+                            {% if form.data_ingestion_model_name.help_text %}<p class="mt-1 text-xs text-gray-500">{{ form.data_ingestion_model_name.help_text|safe }}</p>{% endif %}
+                            {% for error in form.data_ingestion_model_name.errors %}<p class="mt-1 text-sm text-red-600">{{ error }}</p>{% endfor %}
+                        </div>
+                    </div>
+                    {% with data_ingestion_val=form.data_ingestion_model_name.value|default:object.data_ingestion_model_name %}
+                    {% if data_ingestion_val %}
+                    <div class="mt-4 md:col-span-2" id="data_format_instructions_wrapper">
+                        <label for="{{ form.data_format_instructions.id_for_label }}" class="block text-sm font-medium text-gray-700">{{ form.data_format_instructions.label }}</label>
+                        {{ form.data_format_instructions }}
+                        {% if form.data_format_instructions.help_text %}<p class="mt-1 text-xs text-gray-500">{{ form.data_format_instructions.help_text|safe }}</p>{% endif %}
+                        {% for error in form.data_format_instructions.errors %}<p class="mt-1 text-sm text-red-600">{{ error }}</p>{% endfor %}
+                    </div>
+                    {% endif %}
+                    {% endwith %}
+                </fieldset>
+
+                {% if form.non_field_errors %}
+                    <div class="p-3 my-4 text-sm text-red-700 bg-red-100 rounded-lg" role="alert">
+                        {% for error in form.non_field_errors %} <p>{{ error }}</p> {% endfor %}
+                    </div>
+                {% endif %}
+
+                <div class="flex items-center justify-start space-x-3 pt-6 border-t border-gray-300 mt-8">
+                    <button type="submit" name="_save"
+                            class="px-6 py-2.5 bg-primary text-primary-text font-semibold rounded-lg hover:bg-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 ring-primary transition-colors duration-150">
+                        <i class="fas fa-save mr-2"></i>Guardar
+                    </button>
+                    <button type="submit" name="_save_and_return"
+                            class="px-6 py-2.5 bg-gray-600 text-white font-semibold rounded-lg hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 ring-gray-500 transition-colors duration-150">
+                        <i class="fas fa-save mr-1"></i> Guardar y Volver
+                    </button>
+                    <a href="{% url 'indicator_manager:dashboard' %}"
+                       class="px-6 py-2.5 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300 focus:outline-none focus:ring-2 ring-gray-400 transition-colors duration-150">
+                        Cancelar
+                    </a>
+                </div>
+            </form>
+        </div>
+
+        {# --- Data Upload, Preview & Confirmation Section (Dynamically updated by HTMX) --- #}
+        <div id="file-upload-and-preview-section-dynamic-content" class="mb-8"> 
+            {% if object and object.data_ingestion_model_name and object.data_ingestion_model_name.strip %}
+                {% include "indicator_manager/_file_upload_section_partial.html" %}
+            {% endif %}
+        </div>
+    </div>
+
+    {# Change Log Section - Always at the bottom if logsExist #}
+    <div x-show="logsExist" class="w-full mt-8" x-cloak> {# Use mt-8 for spacing from content above #}
+        <div class="bg-white p-6 sm:p-8 rounded-xl shadow-xl">
+            <div class="flex justify-between items-center mb-4 pb-2 border-b border-gray-200">
+                <h2 class="text-lg sm:text-xl font-semibold text-gray-800">
+                    <i class="fas fa-history text-primary mr-2"></i>Historial de Cambios Recientes
+                </h2>
+                <button @click="historyContentOpen = !historyContentOpen" 
+                        :title="historyContentOpen ? 'Colapsar historial (mostrar último)' : 'Expandir historial (mostrar todos)'"
+                        class="text-gray-500 hover:text-primary focus:outline-none text-sm p-1">
+                    <i class="fas" :class="{ 'fa-chevron-up': historyContentOpen, 'fa-chevron-down': !historyContentOpen }"></i>
+                </button>
+            </div>
+
+            <div x-show="historyContentOpen" 
+                 x-transition:enter="transition ease-out duration-300"
+                 x-transition:enter-start="opacity-0 transform scale-y-95"
+                 x-transition:enter-end="opacity-100 transform scale-y-100"
+                 x-transition:leave="transition ease-in duration-200"
+                 x-transition:leave-start="opacity-100 transform scale-y-100"
+                 x-transition:leave-end="opacity-0 transform scale-y-95"
+                 class="max-h-96 overflow-y-auto pr-2 custom-scrollbar">
+                {% if change_logs %}
+                <ul class="space-y-3">
+                    {% for log in change_logs %}
+                    <li class="p-3 bg-gray-50 rounded-md border border-gray-200 text-sm">
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="font-medium text-gray-700">
+                                {% if log.user %} {{ log.user.username }} {% else %} <span class="italic">Sistema</span> {% endif %}
+                                 - {{ log.get_action_type_display }}
+                            </span>
+                            <span class="text-xs text-gray-500">{{ log.timestamp|date:"d M, Y H:i" }}</span>
+                        </div>
+                        {% if log.changed_data %}
+                            {% if log.action_type == 'BULK_UPLOADED' %}
+                                <div class="text-xs text-gray-600 space-y-0.5">
+                                    {% for key, value in log.changed_data.items %}
+                                        <div><strong class="font-normal">{{ key }}:</strong> {{ value }}</div>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <div class="text-xs text-gray-600 space-y-0.5">
+                                    {% for field, values in log.changed_data.items %}
+                                        <div>
+                                            <strong class="font-normal">{{ field }}:</strong>
+                                            <span class="text-red-600 line-through" title="Valor anterior">{{ values.old|default:"(vacío)"|truncatechars:30 }}</span>
+                                            <i class="fas fa-arrow-right text-gray-400 mx-1 text-xs"></i>
+                                            <span class="text-green-700" title="Valor nuevo">{{ values.new|default:"(vacío)"|truncatechars:30 }}</span>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        {% else %}
+                        <p class="text-xs text-gray-500 italic">No hay detalles de campos modificados para esta entrada.</p>
+                        {% endif %}
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                    <p class="text-sm text-gray-500 italic">No hay cambios registrados.</p>
+                {% endif %}
+            </div>
+
+            <div x-show="!historyContentOpen && {% if change_logs.0 %}true{% else %}false{% endif %}" 
+                 x-transition:enter="transition ease-out duration-300"
+                 x-transition:enter-start="opacity-0 transform scale-y-95"
+                 x-transition:enter-end="opacity-100 transform scale-y-100"
+                 x-transition:leave="transition ease-in duration-200"
+                 x-transition:leave-start="opacity-100 transform scale-y-100"
+                 x-transition:leave-end="opacity-0 transform scale-y-95"
+                 class="mt-2">
+                <p class="text-sm font-medium text-gray-700">Último cambio:</p>
+                {% if change_logs.0 %}
+                    {% with log=change_logs.0 %}
+                    <div class="p-3 bg-gray-50 rounded-md border border-gray-200 text-sm mt-1">
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="font-medium text-gray-700">
+                                {% if log.user %} {{ log.user.username }} {% else %} <span class="italic">Sistema</span> {% endif %}
+                                 - {{ log.get_action_type_display }}
+                            </span>
+                            <span class="text-xs text-gray-500">{{ log.timestamp|date:"d M, Y H:i" }}</span>
+                        </div>
+                        {% if log.changed_data %}
+                            {% if log.action_type == 'BULK_UPLOADED' %}
+                                <div class="text-xs text-gray-600 space-y-0.5">
+                                    {% for key, value in log.changed_data.items %}
+                                        <div><strong class="font-normal">{{ key }}:</strong> {{ value }}</div>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <div class="text-xs text-gray-600 space-y-0.5">
+                                    {% for field, values in log.changed_data.items %}
+                                        <div>
+                                            <strong class="font-normal">{{ field }}:</strong>
+                                            <span class="text-red-600 line-through" title="Valor anterior">{{ values.old|default:"(vacío)"|truncatechars:30 }}</span>
+                                            <i class="fas fa-arrow-right text-gray-400 mx-1 text-xs"></i>
+                                            <span class="text-green-700" title="Valor nuevo">{{ values.new|default:"(vacío)"|truncatechars:30 }}</span>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        {% else %}
+                        <p class="text-xs text-gray-500 italic">No hay detalles de campos modificados para esta entrada.</p>
+                        {% endif %}
+                    </div>
+                    {% endwith %}
+                {% endif %}
+            </div>
+            <div x-show="!historyContentOpen && !{% if change_logs.0 %}true{% else %}false{% endif %}" class="mt-2">
+                 <p class="text-sm text-gray-500 italic">No hay cambios registrados para mostrar como último cambio.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock content %}
+
+{% block extra_scripts %}
+    {# Alpine.js is already in extra_head from base.html #}
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // Event listener to scroll to preview section after HTMX swap
+            document.body.addEventListener('htmx:afterSwap', function(event) {
+                if (event.detail.target.id === 'file-upload-and-preview-section-dynamic-content') {
+                    const previewContent = document.getElementById('filePreviewSection'); // ID of the preview div itself
+                    const initialUploadForm = document.getElementById('fileUploadSectionInner'); // ID of the initial upload form
+                    const targetToScroll = previewContent || initialUploadForm || document.getElementById('file-upload-and-preview-section-dynamic-content');
+                    
+                    if (targetToScroll) { 
+                        targetToScroll.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                }
+            });
+        });
+    </script>
+{% endblock %}

@@ -1,0 +1,156 @@
+{% load i18n %}
+
+{# This entire div is the target for HTMX swaps for the upload/preview process #}
+<div id="file-upload-and-preview-section-dynamic-content" class="mt-8"> 
+    {# Display messages specifically within this partial if they are related to upload actions #}
+    {% if messages %}
+        <div class="mb-4 space-y-2">
+            {% for message in messages %}
+                <div class="p-4 rounded-md text-sm {% if message.tags == 'success' %}bg-green-100 text-green-700 border border-green-300{% elif message.tags == 'error' %}bg-red-100 text-red-800 border border-red-300{% elif message.tags == 'info' %}bg-blue-100 text-blue-700 border border-blue-300{% elif message.tags == 'warning' %}bg-yellow-100 text-yellow-800 border border-yellow-300{% else %}bg-gray-100 text-gray-700 border border-gray-300{% endif %}" role="alert">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    {% if preview_data %}
+        <div class="bg-yellow-50 p-6 sm:p-8 rounded-xl shadow-xl border border-yellow-300" id="filePreviewSection">
+            <h2 class="text-xl font-semibold text-yellow-800 mb-3">
+                <i class="fas fa-file-import mr-2"></i>Confirmar Carga de Datos: {{ preview_data.original_filename }}
+            </h2>
+            <div class="text-sm text-yellow-700 space-y-1 mb-4">
+                <p><strong>Año:</strong> {{ preview_data.year }}, <strong>Periodo:</strong> {{ preview_data.periodo }}</p>
+                <p><strong>Resumen del Procesamiento (Vista Previa):</strong></p>
+                <ul class="list-disc list-inside ml-4">
+                    <li>Filas a crear: <strong class="font-semibold">{{ preview_data.stats.to_create }}</strong></li>
+                    <li>Filas omitidas (datos incompletos): <strong class="font-semibold">{{ preview_data.stats.skipped }}</strong></li>
+                    <li>Filas con errores de formato: <strong class="font-semibold">{{ preview_data.stats.row_errors }}</strong></li>
+                </ul>
+                {% if preview_data.detailed_errors %}
+                    <p class="mt-2"><strong>Primeros errores/omisiones detallados (hasta 10):</strong></p>
+                    <ul class="list-disc list-inside ml-4 text-xs max-h-32 overflow-y-auto custom-scrollbar">
+                        {% for err_detail in preview_data.detailed_errors %}
+                            <li>{{ err_detail }}</li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
+            </div>
+
+            {% if preview_data.preview_rows %}
+            <h4 class="text-md font-semibold text-gray-700 mt-4 mb-2">Vista Previa de Primeras Filas Válidas (hasta 5):</h4>
+            <div class="overflow-x-auto max-h-60 custom-scrollbar border border-gray-200 rounded-md">
+                <table class="min-w-full text-xs">
+                    <thead class="bg-gray-100">
+                        <tr>
+                            {% for key in preview_data.preview_rows.0.keys %}
+                                <th class="px-2 py-1 text-left font-medium text-gray-600">{{ key }}</th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-100">
+                        {% for row_dict in preview_data.preview_rows %}
+                        <tr>
+                            {% for key, value in row_dict.items %}
+                                <td class="px-2 py-1 whitespace-nowrap text-gray-700">{{ value|default:"-" }}</td>
+                            {% endfor %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+                <p class="text-sm text-yellow-700 italic">No hay filas válidas para previsualizar según el procesamiento.</p>
+            {% endif %}
+
+            <form method="post" class="mt-6 flex items-center space-x-3"
+                  hx-post="{% url 'indicator_manager:indicator_manage' pk=indicator.pk %}"
+                  hx-target="#file-upload-and-preview-section-dynamic-content"
+                  hx-swap="innerHTML" {# Changed to innerHTML to replace content within the target div #}
+                  hx-indicator="#file-upload-loading-indicator-confirm">
+                {% csrf_token %}
+                {# temp_file_identifier_in_session is not needed as session is server-side #}
+                
+                <button type="submit" name="confirm_raat_data_save"
+                        class="px-5 py-2 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 ring-green-500">
+                    <i class="fas fa-check-circle mr-2"></i>Confirmar y Guardar
+                </button>
+                <button type="submit" name="cancel_raat_data_upload"
+                        class="px-5 py-2 bg-red-500 text-white font-semibold rounded-lg hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-offset-2 ring-red-400">
+                    <i class="fas fa-times-circle mr-2"></i>Cancelar Subida
+                </button>
+                <div id="file-upload-loading-indicator-confirm" class="htmx-indicator ml-2">
+                    <i class="fas fa-spinner fa-spin text-primary"></i>
+                </div>
+            </form>
+        </div>
+    {% elif upload_form %} 
+        <div class="bg-white p-6 sm:p-8 rounded-xl shadow-xl" id="fileUploadSectionInner">
+            <h2 class="text-xl sm:text-2xl font-semibold text-gray-800 mb-2">
+                <i class="fas fa-upload text-primary mr-3"></i>
+                Cargar Datos para: <span class="text-primary">{{ indicator.name }}</span>
+            </h2>
+            <p class="text-sm text-gray-600 mb-1">Modelo Destino: <code class="text-xs bg-gray-100 p-1 rounded">{{ indicator.data_ingestion_model_name }}</code></p>
+            
+            {% if indicator.data_format_instructions %}
+            <div class="mb-4 p-3 bg-blue-50 border-l-4 border-blue-400 text-blue-700 text-sm">
+                <h4 class="font-semibold mb-1">Instrucciones de Formato:</h4>
+                <div class="prose prose-sm max-w-none prose-p:my-1 prose-ul:my-1 prose-li:my-0.5">{{ indicator.data_format_instructions|linebreaksbr }}</div>
+            </div>
+            {% endif %}
+
+            <form method="post" enctype="multipart/form-data" class="space-y-4"
+                  hx-post="{% url 'indicator_manager:indicator_manage' pk=indicator.pk %}"
+                  hx-target="#file-upload-and-preview-section-dynamic-content"
+                  hx-swap="innerHTML" {# Changed to innerHTML #}
+                  hx-encoding="multipart/form-data" 
+                  hx-indicator="#file-upload-loading-indicator-initial">
+                {% csrf_token %}
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
+                    <div class="sm:col-span-1">
+                        <label for="{{ upload_form.year.id_for_label }}" class="block text-sm font-medium text-gray-700">{{ upload_form.year.label }}</label>
+                        {{ upload_form.year }}
+                        {% for error in upload_form.year.errors %}<p class="mt-1 text-sm text-red-600">{{ error }}</p>{% endfor %}
+                    </div>
+                    <div class="sm:col-span-1">
+                        <label for="{{ upload_form.periodo.id_for_label }}" class="block text-sm font-medium text-gray-700">{{ upload_form.periodo.label }}</label>
+                        {{ upload_form.periodo }}
+                        {% for error in upload_form.periodo.errors %}<p class="mt-1 text-sm text-red-600">{{ error }}</p>{% endfor %}
+                    </div>
+                </div>
+                <div>
+                    <label for="{{ upload_form.data_file.id_for_label }}" class="block text-sm font-medium text-gray-700 mt-3">{{ upload_form.data_file.label }} {% if upload_form.data_file.field.required %}<span class="text-red-500">*</span>{% endif %}</label>
+                    {{ upload_form.data_file }}
+                    {% if upload_form.data_file.help_text %}<p class="mt-1 text-xs text-gray-500">{{ upload_form.data_file.help_text|safe }}</p>{% endif %}
+                    {% for error in upload_form.data_file.errors %}<p class="mt-1 text-sm text-red-600">{{ error }}</p>{% endfor %}
+                </div>
+
+                {% if upload_form.non_field_errors %}
+                    <div class="p-3 my-2 text-sm text-red-700 bg-red-100 rounded-lg" role="alert">
+                        {% for error in upload_form.non_field_errors %} <p>{{ error }}</p> {% endfor %}
+                    </div>
+                {% endif %}
+
+                <div class="pt-2 flex items-center space-x-3">
+                    <button type="submit" name="upload_indicator_data"
+                            class="px-5 py-2 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 ring-green-500 transition-colors duration-150">
+                        <i class="fas fa-cloud-upload-alt mr-2"></i>Subir y Previsualizar
+                    </button>
+                    <div id="file-upload-loading-indicator-initial" class="htmx-indicator">
+                        <i class="fas fa-spinner fa-spin text-primary"></i>
+                    </div>
+                </div>
+            </form>
+        </div>
+    {% elif upload_error_message %} 
+        <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-md shadow-md mt-8" role="alert">
+            <p class="font-bold">Error en la Previsualización del Archivo</p>
+            <p>{{ upload_error_message }}</p>
+            <p class="mt-2 text-sm">Por favor, corrija el archivo o los parámetros e inténtelo de nuevo.</p>
+            <button hx-get="{% url 'indicator_manager:indicator_manage' pk=indicator.pk %}" 
+                    hx-target="#file-upload-and-preview-section-dynamic-content" 
+                    hx-select="#file-upload-and-preview-section-dynamic-content" {# Select the target itself to re-fetch its initial content #}
+                    hx-swap="outerHTML" {# Replace the whole section to get the form back #}
+                    class="mt-2 text-sm text-blue-600 hover:underline">Cargar nuevo archivo</button>
+        </div>
+    {% endif %}
+</div>

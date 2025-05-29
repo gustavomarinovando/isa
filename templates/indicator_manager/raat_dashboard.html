@@ -1,0 +1,208 @@
+{% extends "base.html" %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}Dashboard RAAT{% endblock title %}
+
+{% block extra_head %}
+    {{ block.super }}
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+    <style>
+        .chart-card {
+            @apply bg-white p-3 sm:p-4 rounded-xl shadow-lg flex flex-col;
+            border: 1px solid #e5e7eb; /* Neutral border */
+        }
+        .chart-title { @apply text-sm font-semibold text-gray-700 mb-2 text-center; }
+        .chart-canvas-container {
+            position: relative;
+            margin: auto;
+            width: 100%;
+            flex-grow: 1; /* Key for taking available vertical space */
+        }
+
+        /* Removed specific min-heights for #donut-section-wrapper, #grado-section-wrapper, #materia-section-wrapper */
+        /* These are now handled by Tailwind classes directly in the partial */
+
+        .global-filter-bar {
+            @apply flex flex-wrap items-center gap-x-3 gap-y-2 p-0;
+        }
+        .global-filter-bar > div { @apply flex-1 min-w-[90px] sm:min-w-[110px]; }
+        .global-filter-bar label { @apply block text-xs font-medium text-gray-600 mb-0.5; }
+        .global-filter-bar select { @apply text-xs p-1.5 h-8 bg-white border border-gray-300 rounded-md shadow-sm focus:ring-primary focus:border-primary; }
+
+        .local-filter-bar { /* This class seems unused in the provided partial, but kept for completeness if used elsewhere */
+            @apply grid grid-cols-2 gap-2 mb-2;
+        }
+        .local-filter-bar > div { @apply flex-1; }
+        .local-filter-bar label { @apply block text-xs font-medium text-gray-600 mb-0.5; }
+        .local-filter-bar select {@apply text-xs p-1.5 h-8 bg-white border border-gray-300 rounded-md shadow-sm focus:ring-primary focus:border-primary; }
+        
+        body { background-color: #f5f5f5; } /* Neutral gray */
+    </style>
+{% endblock %}
+
+{% block breadcrumb %}
+<div class="mb-4">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+        <div>
+            <h1 class="text-xl sm:text-2xl font-semibold text-gray-900 flex items-center">
+                <i class="fas fa-chart-bar fa-fw mr-2 text-primary"></i>Dashboard de Alertas Tempranas (RAAT)
+            </h1>
+            <p class="text-xs sm:text-sm text-gray-600">Visualización de reportes académicos de alerta temprana.</p>
+        </div>
+        <div id="global-filters-container" class="mt-2 sm:mt-0">
+             <form id="raatGlobalFilterForm" method="get"
+                    hx-get="{% url 'indicator_manager:raat_dashboard' %}"
+                    hx-target="#charts-and-local-filters-container"
+                    hx-swap="innerHTML"
+                    hx-indicator="#dashboard-loading-indicator-global"
+                    class="global-filter-bar">
+                <input type="hidden" name="ciclo_local" id="hidden_ciclo_local_for_global_form" value="{{ selected_ciclo_local|default:'' }}">
+                <input type="hidden" name="grado_local" id="hidden_grado_local_for_global_form" value="{{ selected_grado_local|default:'' }}">
+                
+                <div>
+                    <label for="{{ filter_form.year.id_for_label }}">{{ filter_form.year.label }}</label>
+                    {{ filter_form.year }}
+                </div>
+                <div>
+                    <label for="{{ filter_form.periodo.id_for_label }}">{{ filter_form.periodo.label }}</label>
+                    {{ filter_form.periodo }}
+                </div>
+                <div id="dashboard-loading-indicator-global" class="htmx-indicator text-primary self-center pb-0.5 pl-2">
+                    <i class="fas fa-spinner fa-spin"></i>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock breadcrumb %}
+
+{% block content %}
+<div class="space-y-6" id="dashboard-content-area"> {# Main content area for scrolling into view #}
+    <div id="charts-and-local-filters-container">
+        {% include "indicator_manager/_raat_charts_and_local_filters_partial.html" %}
+    </div>
+</div>
+
+<script>
+    function initializeSlicerAndChartLogic() {
+        const cicloGradoMap = {
+            'PRE': [{value: '', text: '{% translate "Grado (PRE)"|escapejs %}'}, {value: '6P', text: '6P'}, {value: '1S', text: '1S'}, {value: '2S', text: '2S'}],
+            'PRO': [{value: '', text: '{% translate "Grado (PRO)"|escapejs %}'}, {value: '3S', text: '3S'}, {value: '4S', text: '4S'}],
+            'EXP': [{value: '', text: '{% translate "Grado (EXP)"|escapejs %}'}, {value: '5S', text: '5S'}, {value: '6S', text: '6S'}]
+        };
+        const allGrados = [ 
+            {value: '', text: '{% translate "Todos Grados"|escapejs %}'},
+            {value: '6P', text: '6P'}, {value: '1S', text: '1S'}, {value: '2S', text: '2S'},
+            {value: '3S', text: '3S'}, {value: '4S', text: '4S'},
+            {value: '5S', text: '5S'}, {value: '6S', text: '6S'},
+            {value: '1P', text: '1P'}, {value: '2P', text: '2P'}, {value: '3P', text: '3P'}, 
+            {value: '4P', text: '4P'}, {value: '5P', text: '5P'}
+        ];
+
+        const cicloSlicerLocal = document.getElementById('id_raat_ciclo_slicer_local'); 
+        const gradoSlicerLocal = document.getElementById('id_raat_grado_slicer_local'); 
+        
+        const yearSlicerGlobal = document.getElementById('{{ filter_form.year.id_for_label }}');
+        const periodoSlicerGlobal = document.getElementById('{{ filter_form.periodo.id_for_label }}');
+        const mainFormForHTMX = document.getElementById('raatGlobalFilterForm');
+
+        const hiddenCicloInput = document.getElementById('hidden_ciclo_local_for_global_form');
+        const hiddenGradoInput = document.getElementById('hidden_grado_local_for_global_form');
+
+        function updateGradoOptionsLocal() {
+            if (!cicloSlicerLocal || !gradoSlicerLocal) return;
+            const selectedCiclo = cicloSlicerLocal.value;
+            const currentGradoValue = (cicloGradoMap[selectedCiclo]?.some(g => g.value === gradoSlicerLocal.value)) ? gradoSlicerLocal.value : '';
+
+            gradoSlicerLocal.innerHTML = ''; 
+            let optionsToShow = allGrados; 
+            if (selectedCiclo && cicloGradoMap[selectedCiclo]) {
+                optionsToShow = cicloGradoMap[selectedCiclo];
+            }
+            optionsToShow.forEach(opt => {
+                const option = document.createElement('option');
+                option.value = opt.value;
+                option.textContent = opt.text;
+                if (opt.value === currentGradoValue) { option.selected = true; }
+                gradoSlicerLocal.appendChild(option);
+            });
+            if (gradoSlicerLocal.value !== currentGradoValue && optionsToShow.length > 0 && optionsToShow[0].value === '') {
+                gradoSlicerLocal.value = '';
+            }
+        }
+
+        function updateCicloOptionsLocal() {
+            if (!cicloSlicerLocal || !gradoSlicerLocal) return;
+            const selectedGrado = gradoSlicerLocal.value;
+            if (!selectedGrado) { updateGradoOptionsLocal(); return; }
+
+            const currentCicloValue = cicloSlicerLocal.value;
+            let newCicloValue = ''; 
+            for (const cicloKey in cicloGradoMap) {
+                if (cicloGradoMap[cicloKey].some(g => g.value === selectedGrado)) {
+                    newCicloValue = cicloKey; break;
+                }
+            }
+            if (cicloSlicerLocal.value !== newCicloValue) {
+                cicloSlicerLocal.value = newCicloValue;
+            }
+            updateGradoOptionsLocal();
+        }
+        
+        function triggerChartUpdate() {
+            if (mainFormForHTMX && typeof htmx !== 'undefined') {
+                if (cicloSlicerLocal && hiddenCicloInput) hiddenCicloInput.value = cicloSlicerLocal.value;
+                if (gradoSlicerLocal && hiddenGradoInput) hiddenGradoInput.value = gradoSlicerLocal.value;
+                htmx.trigger(mainFormForHTMX, 'submit'); 
+            }
+        }
+
+        if (cicloSlicerLocal) {
+            cicloSlicerLocal.addEventListener('change', function() {
+                updateGradoOptionsLocal(); triggerChartUpdate();
+            });
+        }
+        if (gradoSlicerLocal) {
+            gradoSlicerLocal.addEventListener('change', function() {
+                updateCicloOptionsLocal(); triggerChartUpdate();
+            });
+        }
+        // Ensure event listeners are only added if elements exist (they are in the global form)
+        if (yearSlicerGlobal) yearSlicerGlobal.addEventListener('change', triggerChartUpdate);
+        if (periodoSlicerGlobal) periodoSlicerGlobal.addEventListener('change', triggerChartUpdate);
+        
+        // Initial population and state setting
+        if (cicloSlicerLocal && gradoSlicerLocal) {
+            const initialCiclo = "{{ selected_ciclo_local|default:''|escapejs }}";
+            const initialGrado = "{{ selected_grado_local|default:''|escapejs }}";
+            if(initialCiclo) cicloSlicerLocal.value = initialCiclo;
+            updateGradoOptionsLocal(); 
+            if(initialGrado) gradoSlicerLocal.value = initialGrado; 
+            if(initialGrado) updateCicloOptionsLocal();
+        }
+
+        // Initial scroll to content
+        const contentArea = document.getElementById('dashboard-content-area');
+        const navbar = document.querySelector('nav.bg-primary');
+        if(contentArea && navbar && window.scrollY < contentArea.offsetTop - navbar.offsetHeight - 20) { 
+            setTimeout(() => { 
+                const targetScrollPos = contentArea.offsetTop - navbar.offsetHeight - 10; 
+                window.scrollTo({ top: targetScrollPos > 0 ? targetScrollPos : 0, behavior: 'auto' });
+            }, 50); 
+        }
+    }
+    
+    document.addEventListener('DOMContentLoaded', initializeSlicerAndChartLogic);
+    document.body.addEventListener('htmx:afterSwap', function(event) {
+        // Ensure this runs for the correct target after HTMX swap
+        if (event.detail.target.id === 'charts-and-local-filters-container') {
+            initializeSlicerAndChartLogic(); 
+            // Re-initialize charts from the partial's script (which will be newly loaded)
+            // The script in the partial is self-executing, so it should run automatically.
+            // If it's not, you might need to explicitly call a function defined in the partial.
+        }
+    });
+</script>
+{% endblock %}

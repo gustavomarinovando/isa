@@ -1,0 +1,272 @@
+{% extends "base.html" %}
+{% load static %} 
+
+{% block title %}Índice de Indicadores{% endblock title %}
+
+{% block breadcrumb %}
+<div class="mb-6">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+        <div>
+            <h1 class="text-2xl font-semibold text-gray-900 flex items-center">
+                <i class="fas fa-tachometer-alt fa-fw mr-3 text-primary"></i>Índice de Indicadores
+            </h1>
+            <p class="text-sm text-gray-600">Panel de control y filtro de indicadores (KPIs)</p>
+        </div>
+        <nav class="mt-2 sm:mt-0" aria-label="breadcrumb">
+            <ol class="flex items-center space-x-2 text-sm text-gray-500">
+                <li>
+                    <a href="{% url 'indicator_manager:dashboard' %}" class="hover:text-primary">
+                        <i class="fas fa-home fa-fw"></i>
+                    </a>
+                </li>
+                <li><span class="mx-2">/</span></li>
+                <li class="font-medium text-gray-700" aria-current="page">Índice</li>
+            </ol>
+        </nav>
+    </div>
+</div>
+{% endblock breadcrumb %}
+
+{% block content %}
+<div x-data="{ 
+        totalIndicators: {{ total_indicators_count }}, 
+        filteredIndicators: {{ filtered_indicators_count }},
+        presentedIndicators: {{ indicadores_presentados_count }},
+        upcomingReview: {{ proximos_a_revision_count }},
+        copyFeedbackText: 'Indicadores Filtrados',
+        appliedFiltersSummary: '{{ applied_filters_summary_str|escapejs }}',
+        filterSectionOpen: true {# For collapsible filter section #}
+     }"
+     @update-filter-summary.window="appliedFiltersSummary = $event.detail.value"
+     @update-counters.window="
+        filteredIndicators = $event.detail.filtered;
+        totalIndicators = $event.detail.total; 
+        presentedIndicators = $event.detail.presented;
+        upcomingReview = $event.detail.upcoming;
+     "
+     @set-selected-month.window="
+        const monthNumber = $event.detail.monthNumber;
+        const form = document.getElementById('indicatorFilterForm');
+        if (form && monthNumber) {
+            form.querySelectorAll('input[name=\'review_month\']').forEach(checkbox => {
+                checkbox.checked = (checkbox.value === String(monthNumber));
+            });
+        }
+     "
+     id="dashboard-alpine-root" 
+     class="space-y-8">
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <button 
+            @click="document.getElementById('clearFiltersButton').click();"
+            type="button" title="Mostrar todos los indicadores y limpiar filtros"
+            class="text-left bg-white p-6 rounded-xl shadow-lg flex items-center space-x-4 hover:shadow-xl transition-shadow duration-300 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-opacity-50">
+            <div class="p-3 rounded-full bg-blue-100 text-blue-600"> <i class="fas fa-clipboard-list fa-2x"></i> </div>
+            <div>
+                <p class="text-sm text-gray-500">Total de Indicadores</p>
+                <p class="text-2xl font-semibold text-gray-900" x-text="totalIndicators"></p>
+            </div>
+        </button>
+
+        <button 
+            @click="
+                navigator.clipboard.writeText(window.location.href)
+                    .then(() => { 
+                        let originalText = copyFeedbackText;
+                        copyFeedbackText = '¡URL Copiada!'; 
+                        setTimeout(() => { copyFeedbackText = originalText; }, 2500);
+                    })
+                    .catch(err => { 
+                        let originalText = copyFeedbackText;
+                        copyFeedbackText = 'Error al Copiar';
+                        setTimeout(() => { copyFeedbackText = originalText; }, 2500);
+                    });
+            "
+            type="button" title="Copiar enlace actual con todos los filtros aplicados"
+            class="text-left bg-white p-6 rounded-xl shadow-lg flex items-center space-x-4 hover:shadow-xl transition-shadow duration-300 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-opacity-50">
+            <div class="p-3 rounded-full bg-green-100 text-green-600"> <i class="fas fa-link fa-2x"></i> </div>
+            <div>
+                <p class="text-sm text-gray-500" x-text="copyFeedbackText"></p> 
+                <p class="text-2xl font-semibold text-gray-900" x-text="filteredIndicators"></p>
+            </div>
+        </button>
+
+        <a href="#" title="Gestionar indicadores presentados (Próximamente)"
+            class="block bg-white p-6 rounded-xl shadow-lg flex items-center space-x-4 hover:shadow-xl transition-shadow duration-300 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-opacity-50">
+            <div class="p-3 rounded-full bg-purple-100 text-purple-600"> <i class="fas fa-tasks fa-2x"></i> </div>
+            <div>
+                <p class="text-sm text-gray-500">Indicadores Presentados</p> 
+                <p class="text-2xl font-semibold text-gray-900" x-text="presentedIndicators"></p>
+            </div>
+        </a>
+
+        <button 
+            type="button"
+            title="Filtrar por indicadores próximos a revisión este mes"
+            hx-get="{% url 'indicator_manager:dashboard' %}"
+            hx-vals='{"filter_current_review_month": "{{ current_month_number_for_card }}"}'
+            hx-target="#indicator-table-container"
+            hx-swap="outerHTML"
+            hx-indicator="#filter-actions-indicator, #collapsed-filter-indicator"
+            hx-push-url="true"
+            hx-include="form#indicatorFilterForm" 
+            class="text-left bg-white p-6 rounded-xl shadow-lg flex items-center space-x-4 hover:shadow-xl transition-shadow duration-300 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-opacity-50">
+            <div class="p-3 rounded-full bg-yellow-100 text-yellow-600"> <i class="fas fa-calendar-check fa-2x"></i> </div>
+            <div>
+                <p class="text-sm text-gray-500">Próximos a Revisión</p>
+                <p class="text-2xl font-semibold text-gray-900" x-text="upcomingReview"></p>
+            </div>
+        </button>
+    </div>
+
+    <div class="bg-white p-6 rounded-xl shadow-lg">
+        <div class="flex justify-between items-center mb-4">
+            <div class="flex items-center">
+                <h2 class="text-xl font-semibold text-gray-800 mr-4">Filtrar Indicadores</h2>
+                {# Loading indicator for collapsed state - shown when form is not 'open' AND htmx request is happening #}
+                <div id="collapsed-filter-indicator" class="htmx-indicator" :class="{ 'hidden': filterSectionOpen }">
+                    <i class="fas fa-spinner fa-spin fa-lg text-primary"></i>
+                </div>
+            </div>
+            <button @click="filterSectionOpen = !filterSectionOpen" class="text-primary hover:text-primary-hover focus:outline-none p-2 -mr-2">
+                <i class="fas text-lg" :class="{ 'fa-chevron-up': filterSectionOpen, 'fa-chevron-down': !filterSectionOpen }"></i>
+                <span class="sr-only" x-text="filterSectionOpen ? 'Ocultar Filtros' : 'Mostrar Filtros'"></span>
+            </button>
+        </div>
+
+        <div x-show="!filterSectionOpen" x-transition:enter="transition ease-out duration-100" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100" x-transition:leave="transition ease-in duration-75" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95" 
+             class="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-md text-sm text-blue-700">
+            <strong>Filtros Aplicados:</strong> <span x-text="appliedFiltersSummary"></span>
+        </div>
+
+        <div x-show="filterSectionOpen" x-transition>
+            <form method="get" action="" class="space-y-6" id="indicatorFilterForm"
+                  hx-get="{% url 'indicator_manager:dashboard' %}"
+                  hx-target="#indicator-table-container"
+                  hx-swap="outerHTML" 
+                  hx-indicator="#filter-actions-indicator, #collapsed-filter-indicator"
+                  hx-push-url="true" 
+                  >
+                <div>
+                    <label for="{{ filter_form.search_text.id_for_label }}" class="sr-only">{{ filter_form.search_text.label }}</label>
+                    {{ filter_form.search_text }} 
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+                    <div class="space-y-6">
+                        <div class="flex items-center pt-1">
+                            {{ filter_form.shown_to_board }}
+                            <label for="{{ filter_form.shown_to_board.id_for_label }}" class="ml-2 text-sm font-medium text-gray-700">{{ filter_form.shown_to_board.label }}</label>
+                        </div>
+                        <div class="flex items-center pt-1">
+                            {{ filter_form.has_dashboard_filter }}
+                            <label for="{{ filter_form.has_dashboard_filter.id_for_label }}" class="ml-2 text-sm font-medium text-gray-700">{{ filter_form.has_dashboard_filter.label }}</label>
+                        </div>
+                        <div>
+                            <label for="{{ filter_form.responsible_persons.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">{{ filter_form.responsible_persons.label }}</label>
+                            <div class="border border-gray-300 rounded-md p-3 max-h-40 overflow-y-auto mt-1 checkbox-multiple-compact">
+                                <div class="space-y-1">
+                                {% for choice in filter_form.responsible_persons %}
+                                    <div class="flex items-center">
+                                        {{ choice.tag }} 
+                                        <label for="{{ choice.id_for_label }}" class="ml-2 text-sm text-gray-700 select-none">{{ choice.choice_label }}</label>
+                                    </div>
+                                {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">{{ filter_form.review_month.label }}</label>
+                        <div class="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2 max-h-48 overflow-y-auto pr-2 border border-gray-200 rounded-md p-3 checkbox-multiple-compact">
+                            {% for choice in filter_form.review_month %}
+                            <div class="flex items-center">
+                                {{ choice.tag }} 
+                                <label for="{{ choice.id_for_label }}" class="ml-2 text-sm text-gray-700 select-none">{{ choice.choice_label }}</label>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flex items-center space-x-3 pt-4 border-t border-gray-200 mt-6">
+                    <button type="submit" class="px-6 py-2 bg-primary text-primary-text font-semibold rounded-lg hover:bg-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 ring-primary transition-colors duration-150">
+                        <i class="fas fa-filter mr-2"></i>Aplicar Filtros
+                    </button>
+                    <button type="button" id="clearFiltersButton" class="px-6 py-2 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300 focus:outline-none focus:ring-2 ring-gray-400 transition-colors duration-150">
+                        <i class="fas fa-times mr-2"></i>Limpiar
+                    </button>
+                    <div id="filter-actions-indicator" class="htmx-indicator ml-4" :class="{ 'hidden': !filterSectionOpen }">
+                        <i class="fas fa-spinner fa-spin fa-lg text-primary"></i>
+                        <span class="text-sm text-gray-600 ml-2">Actualizando...</span>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {% include "indicator_manager/_indicator_table_partial.html" %}
+
+</div> {# End of main Alpine component #}
+{% endblock content %}
+
+{% block extra_scripts %}
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const filterForm = document.getElementById('indicatorFilterForm');
+    const clearButton = document.getElementById('clearFiltersButton');
+    const dashboardAlpineRoot = document.getElementById('dashboard-alpine-root');
+
+    if (clearButton && filterForm) {
+        clearButton.addEventListener('click', function () {
+            filterForm.reset(); 
+            filterForm.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+                checkbox.checked = false;
+            });
+            filterForm.querySelectorAll('select').forEach(select => {
+                select.selectedIndex = 0;
+            });
+            if (typeof htmx !== 'undefined') {
+                htmx.trigger(filterForm, 'submit'); 
+            }
+            if (dashboardAlpineRoot && dashboardAlpineRoot.__x && dashboardAlpineRoot.__x.$data) {
+                dashboardAlpineRoot.__x.$data.appliedFiltersSummary = "Ninguno aplicado";
+            }
+        });
+    }
+
+    // Event listeners are now on the dashboardAlpineRoot via @event.window in Alpine
+    // The JS listeners below are an alternative if you prefer vanilla JS for these specific events.
+    // For this version, we'll rely on Alpine's @event.window for simplicity.
+    // If you had issues with @event.window, you could use these:
+    /*
+    if (dashboardAlpineRoot) {
+        dashboardAlpineRoot.addEventListener('updateFilterSummary', function(event) {
+            if (dashboardAlpineRoot.__x && dashboardAlpineRoot.__x.$data && typeof event.detail.value !== 'undefined') {
+                 dashboardAlpineRoot.__x.$data.appliedFiltersSummary = event.detail.value;
+            }
+        });
+        dashboardAlpineRoot.addEventListener('updateCounters', function(event) {
+            if (dashboardAlpineRoot.__x && dashboardAlpineRoot.__x.$data) {
+                 if (typeof event.detail.filtered !== 'undefined') dashboardAlpineRoot.__x.$data.filteredIndicators = event.detail.filtered;
+                 if (typeof event.detail.total !== 'undefined') dashboardAlpineRoot.__x.$data.totalIndicators = event.detail.total;
+                 if (typeof event.detail.presented !== 'undefined') dashboardAlpineRoot.__x.$data.presentedIndicators = event.detail.presented;
+                 if (typeof event.detail.upcoming !== 'undefined') dashboardAlpineRoot.__x.$data.upcomingReview = event.detail.upcoming;
+            }
+        });
+        dashboardAlpineRoot.addEventListener('setSelectedMonth', function(event) {
+            const monthNumber = event.detail.monthNumber;
+            const form = document.getElementById('indicatorFilterForm');
+            if (form && monthNumber) {
+                form.querySelectorAll('input[name=\'review_month\']').forEach(checkbox => {
+                    checkbox.checked = (checkbox.value === String(monthNumber));
+                });
+            }
+        });
+    }
+    */
+});
+</script>
+{% endblock extra_scripts %}
