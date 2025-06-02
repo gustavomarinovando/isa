@@ -1,21 +1,20 @@
 #!/bin/bash
-
-# Exit immediately if a command exits with a non-zero status.
 set -e
 
-echo "--- Installing System Dependencies (for mysqlclient) ---"
-# The Vercel build environment is based on Amazon Linux 2, which uses yum.
-# We need mariadb-devel (provides MySQL C headers), gcc (for compilation),
-# and python3-devel (for Python C extensions).
-sudo yum update -y
-sudo yum install -y mariadb-devel gcc python3-devel
+echo "--- Current Python Version ---"
+python --version
 
-echo "--- Installing Python Dependencies ---"
-# Now that system dependencies are in place, install Python packages.
-pip install -r requirements.txt
+echo "--- Upgrading pip ---"
+python -m pip install --upgrade pip
+
+echo "--- Installing Python Dependencies (using PyMySQL) ---"
+python -m pip install -r requirements.txt
+
+# Optional: Migrations (if DB is accessible during build)
+# echo "--- Running Database Migrations ---"
+# python manage.py migrate --noinput
 
 echo "--- Collecting Static Files ---"
-# Run Django's collectstatic command.
-python manage.py collectstatic --noinput
+python manage.py collectstatic --noinput --clear
 
 echo "--- Build Script Finished ---"
