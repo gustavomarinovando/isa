@@ -1,61 +1,57 @@
 {% load static %}
 {% load i18n %}
+{% load widget_tweaks %}
 
-<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start" id="raatDashboardGrid">
+<div class="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start" id="raatDashboardGrid">
 
     <div class="lg:col-span-1 space-y-6 flex flex-col">
-        <div class="bg-white p-3 sm:p-4 rounded-xl shadow-xl flex flex-col min-h-[260px] sm:min-h-[280px] justify-center" id="donut-section-wrapper">
-            <h2 class="text-l sm:text-xl font-semibold text-primary text-center mb-2">{% translate "Cantidad Total y por Ciclo" %}</h2>
-            <div class="flex flex-col md:flex-row items-center md:items-start gap-3 flex-grow">
-                <div class="chart-canvas-container !h-[120px] sm:!h-[140px] !max-w-[120px] sm:!max-w-[140px] mx-auto flex-shrink-0" id="raatByCicloChartContainer">
-                    <canvas id="raatByCicloChart"></canvas>
-                </div>
-                <div class="text-xs text-gray-700 flex-grow w-full md:w-auto overflow-y-auto custom-scrollbar max-h-[150px] sm:max-h-[180px] flex items-center">
-                    <table class="min-w-full w-full text-sm">
-                        <thead>
-                            <tr class="border-b border-gray-200">
-                                <th class="py-1 pr-1 text-left font-semibold text-gray-600">Ciclo</th>
-                                <th class="py-1 px-1 text-right font-semibold text-gray-600">Cant.</th>
-                                <th class="py-1 pl-1 text-right font-semibold text-gray-600">%</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                        {% for item in ciclo_table_data %} {# This data is now sorted in views.py #}
-                            <tr class="border-b border-gray-100 last:border-b-0">
-                                <td class="py-0.5 pr-1"><strong style="color: {{ item.color }};">{{ item.ciclo|default:"N/A" }}</strong></td>
-                                <td class="py-0.5 px-1 text-right tabular-nums">{{ item.cantidad }}</td>
-                                <td class="py-0.5 pl-1 text-right tabular-nums">{{ item.porcentaje }}%</td>
-                            </tr>
-                        {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
+        <div class="bg-white p-3 sm:p-4 rounded-xl shadow-xl flex flex-col min-h-[220px] sm:min-h-[240px] justify-between" id="donut-section-wrapper"> {# Reduced height for donut card #}
+            <h2 class="text-base sm:text-lg font-semibold text-primary text-center mb-1">{% translate "Cantidad Total y por Ciclo" %}</h2>
+            {# Donut chart container, reduced size by approx 20% #}
+            <div class="chart-canvas-container !h-[120px] !w-[calc(100%-40px)] sm:!h-[136px] mx-auto flex-shrink-0" id="raatByCicloChartContainer">
+                <canvas id="raatByCicloChart"></canvas>
             </div>
         </div>
 
-        <div class="bg-white p-3 sm:p-4 rounded-xl shadow-xl flex flex-col flex-grow min-h-[260px] sm:min-h-[280px]" id="grado-section-wrapper">
-            <h2 class="text-l sm:text-xl font-semibold text-primary text-center mb-2">{% translate "Cantidad por Grado" %}</h2>
-            <div class="chart-canvas-container" id="raatByGradoChartContainer">
+        <div class="bg-white p-3 sm:p-4 rounded-xl shadow-xl flex flex-col flex-grow min-h-[320px] sm:min-h-[360px]" id="grado-section-wrapper">
+            <h2 class="text-base sm:text-lg font-semibold text-primary text-center mb-2">{% translate "Cantidad por Grado" %}</h2>
+            <div class="chart-canvas-container relative w-full h-full flex-grow" id="raatByGradoChartContainer">
                 <canvas id="raatByGradoChart"></canvas>
             </div>
         </div>
     </div>
 
-    <div class="lg:col-span-2 bg-white p-3 sm:p-4 rounded-xl shadow-xl flex flex-col min-h-[calc(2*260px+1.5rem)] sm:min-h-[calc(2*280px+1.5rem)]" id="materia-section-wrapper">
-        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-2 gap-x-4 gap-y-2">
-            <h2 class="text-l sm:text-xl font-semibold text-primary text-center flex-grow whitespace-nowrap">{% translate "Cantidad de RAAT por Materia" %}</h2>
-            <div class="flex gap-4 w-full sm:w-auto">
-                <div>
-                    <label for="id_raat_ciclo_slicer_local" class="block text-xs font-medium text-gray-600 mb-0.5">{% translate "Ciclo" %}</label>
-                    {{ filter_form.ciclo_local }} {# Assuming this comes from the form passed in context #}
+    <div class="lg:col-span-3 bg-white p-3 sm:p-4 rounded-xl shadow-xl flex flex-col min-h-[calc(2*260px+1.5rem+60px)] sm:min-h-[calc(2*280px+1.5rem+60px)]" id="materia-section-wrapper">
+        {# Vertically centered title with filters and new loading indicator #}
+        <div id="raat-filters-in-materia-card" class="flex flex-col sm:flex-row flex-wrap justify-between items-center mb-3 gap-x-4 gap-y-2">
+            <h2 class="text-base sm:text-lg font-semibold text-primary text-center sm:text-left whitespace-nowrap order-1 sm:order-none">{% translate "Cantidad de RAAT por Materia" %}</h2>
+            
+            <div class="flex flex-wrap items-center gap-x-3 gap-y-2 order-2 sm:order-none w-full sm:w-auto justify-center sm:justify-end">
+                {% if num_available_years > 1 %}
+                <div class="flex-1 min-w-[90px] sm:min-w-[110px]"> {# Adjusted min-width slightly #}
+                    <label for="id_raat_year_slicer" class="block text-xs font-medium text-gray-600 mb-0.5">{% translate "Año" %}</label>
+                    {{ filter_form.year|attr:"id:id_raat_year_slicer" }}
                 </div>
-                <div>
+                {% endif %}
+                <div class="flex-1 min-w-[90px] sm:min-w-[110px]">
+                    <label for="id_raat_periodo_slicer" class="block text-xs font-medium text-gray-600 mb-0.5">{% translate "Periodo" %}</label>
+                    {{ filter_form.periodo|attr:"id:id_raat_periodo_slicer" }}
+                </div>
+                <div class="flex-1 min-w-[90px] sm:min-w-[110px]">
+                    <label for="id_raat_ciclo_slicer_local" class="block text-xs font-medium text-gray-600 mb-0.5">{% translate "Ciclo" %}</label>
+                    {{ filter_form.ciclo_local }}
+                </div>
+                <div class="flex-1 min-w-[90px] sm:min-w-[110px]">
                     <label for="id_raat_grado_slicer_local" class="block text-xs font-medium text-gray-600 mb-0.5">{% translate "Grado" %}</label>
-                    {{ filter_form.grado_local }} {# Assuming this comes from the form passed in context #}
+                    {{ filter_form.grado_local }}
+                </div>
+                {# New localized loading indicator for Materia chart updates #}
+                <div id="materia-chart-loading-indicator" class="htmx-indicator-inline htmx-indicator"> {# Added htmx-indicator class #}
+                    <i class="fas fa-spinner fa-spin text-primary"></i>
                 </div>
             </div>
         </div>
-        <div class="chart-canvas-container" id="raatByMateriaChartContainer">
+        <div class="chart-canvas-container relative w-full h-[420px] sm:h-[460px] flex-grow" id="raatByMateriaChartContainer">
             <canvas id="raatByMateriaChart"></canvas>
         </div>
     </div>
@@ -63,40 +59,29 @@
 
 <script>
     (function() {
-        // Ensure Chart.js and datalabels plugin are loaded
-        if (typeof Chart === 'undefined') {
-            console.error("Chart.js not loaded. Charts will not render.");
-            return;
-        }
-        if (typeof ChartDataLabels !== 'undefined') {
-            Chart.register(ChartDataLabels);
-        } else {
-            console.warn("Chartjs-plugin-datalabels not loaded. Datalabels will not be displayed.");
-        }
+        if (typeof Chart === 'undefined') { console.error("Chart.js not loaded."); return; }
+        if (typeof ChartDataLabels !== 'undefined') { Chart.register(ChartDataLabels); } 
+        else { console.warn("Chartjs-plugin-datalabels not loaded."); }
 
-        // Common chart configurations
-        const defaultChartColors = ['#29335C', '#4CAF50', '#FFC107', '#F44336', '#2196F3', '#9C27B0', '#00BCD4', '#FF9800', '#8BC34A', '#E91E63', '#009688', '#795548'];
         const cicloColorMap = JSON.parse('{{ ciclo_color_map_json|escapejs|default:"{}" }}');
-        const gradoColorMap = { // This seems to be a predefined map in JS
-            '6P': '#F0F9E8', '1S': '#CCEBC5', '2S': '#A8DDB5', '3S': '#7BCCC4', '4S': '#4EB3D3',
-            '5S': '#2B8CBE', '6S': '#08589E', '1P': '#FFFFD4', '2P': '#FED98E', '3P': '#FEC44F',
-            '4P': '#FE9929', '5P': '#D95F0E', 'N/A': '#D1D5DB'
+        const gradoUserColorMap = {
+            '6P': '#F0F9E8', '1S': '#CCEBC5', '2S': '#A8DDB5', 
+            '3S': '#7BCCC4', '4S': '#4EB3D3', '5S': '#2B8CBE', 
+            '6S': '#08589E', 'N/A': '#D1D5DB'
         };
-        const primaryBorderColor = 'rgba(41, 51, 92, 0.8)';
-        const primaryBorderWidth = 1; // Slightly thinner border for a cleaner look
+        const primaryColor = '#29335C';
+        const chartBorderColor = 'rgba(41, 51, 92, 0.8)';
+        const chartBorderWidth = 1.5; 
 
-        // Utility to get colors for chart datasets
         function getChartColors(labels, specificColorMap, fallbackPalette) {
-            if (!Array.isArray(labels)) return []; // Ensure labels is an array
-            return labels.map((label, index) => specificColorMap[label] || fallbackPalette[index % fallbackPalette.length]);
+            const defaultColors = fallbackPalette || ['#29335C', '#4CAF50', '#FFC107', '#F44336', '#2196F3', '#9C27B0'];
+            if (!Array.isArray(labels)) return [];
+            return labels.map((label, index) => specificColorMap[label] || defaultColors[index % defaultColors.length]);
         }
 
-        // Utility to destroy existing chart instance before creating a new one
         function destroyChartIfExists(chartId) {
             let existingChart = Chart.getChart(chartId);
-            if (existingChart) {
-                existingChart.destroy();
-            }
+            if (existingChart) { existingChart.destroy(); }
         }
 
         // --- Chart 1: Cantidad total y por ciclo (Donut Chart) ---
@@ -116,94 +101,85 @@
                     datasets: [{
                         label: '{{ label_raats_por_ciclo|escapejs }}',
                         data: cicloCounts,
-                        backgroundColor: getChartColors(cicloLabels, cicloColorMap, defaultChartColors),
-                        borderColor: primaryBorderColor,
-                        borderWidth: primaryBorderWidth,
-                        hoverOffset: 8, // Increased hover offset
-                        hoverBorderColor: 'rgba(41, 51, 92, 0.7)',
-                        hoverBorderWidth: 2
+                        backgroundColor: getChartColors(cicloLabels, cicloColorMap),
+                        borderColor: chartBorderColor, 
+                        borderWidth: chartBorderWidth,        
+                        hoverOffset: 8,
                     }]
                 },
                 options: {
                     responsive: true, maintainAspectRatio: false,
-                    cutout: '70%', // Adjusted for better text fit with smaller chart
+                    cutout: '60%', 
+                    layout: { // Added layout padding
+                        padding: {
+                            bottom: 10, // More space for bottom labels/legend
+                            left: 5,
+                            right: 5,
+                            top: 5
+                        }
+                    },
                     plugins: {
-                        legend: { display: false },
+                        legend: { 
+                            display: true, 
+                            position: 'left', 
+                            labels: { font: { size: 9 }, boxWidth: 10, padding: 6 }, // Reduced padding
+                            maxWidth: 70 // Further constrained legend width
+                        },
                         title: { display: false },
-                        datalabels: {
+                        datalabels: { 
                             display: true,
+                            anchor: 'end', 
+                            align: 'end',
+                            offset: 8, // Adjusted offset
+                            borderRadius: 3,
+                            padding: 2,
                             formatter: (value, ctx) => {
                                 let sum = ctx.chart.data.datasets[0].data.reduce((a, b) => parseFloat(a) + parseFloat(b), 0);
                                 let percentage = sum > 0 ? Math.round(value * 100 / sum) : 0;
-                                return percentage + '%';
+                                return value > 0 ? `${value}\n(${percentage}%)` : ''; 
                             },
-                            color: function(context) {
-                                const bgColor = context.dataset.backgroundColor[context.dataIndex];
-                                if (!bgColor) return '#4B5563';
-                                let r, g, b;
-                                if (bgColor.startsWith('#')) {
-                                    const bigint = parseInt(bgColor.slice(1), 16);
-                                    r = (bigint >> 16) & 255; g = (bigint >> 8) & 255; b = bigint & 255;
-                                } else if (bgColor.startsWith('rgba')) {
-                                    const parts = bgColor.substring(bgColor.indexOf('(') + 1, bgColor.lastIndexOf(')')).split(/,\s*/);
-                                    r = parseInt(parts[0]); g = parseInt(parts[1]); b = parseInt(parts[2]);
-                                } else { return '#4B5563'; }
-                                const luminance = (0.299 * r + 0.587 * g + 0.114 * b);
-                                return luminance > 150 ? '#374151' : '#FFFFFF';
+                            color: '#374151', 
+                            font: { weight: 'normal', size: 9 + 2 }, // Increased font size by 2 points
+                            textAlign: 'center',
+                            // Attempt to avoid overlap by slightly adjusting position based on angle
+                            // This is a more advanced technique and might need fine-tuning
+                            rotation: function(ctx) { 
+                                const angle = ctx.chart.getDatasetMeta(0).data[ctx.dataIndex].angle;
+                                // If label is at the very bottom (around PI/2 or 1.57 radians), slightly rotate or shift
+                                if (angle > 1.4 && angle < 1.7 && ctx.chart.data.labels[ctx.dataIndex] === 'PRO') return -10; // Example for "PRO"
+                                return 0;
                             },
-                            font: { weight: 'bold', size: 10 }, // Adjusted font size
-                            anchor: 'end', align: 'end', offset: 6, clamp: true,
+                             clamp: true // prevent labels from going outside the chart area if possible
                         },
-                        centerText: { // Custom plugin for text in donut center
-                            display: true,
-                            totalText: String(totalRaatForDonut),
+                        centerText: { 
+                            display: true, totalText: String(totalRaatForDonut),
                             yearText: (selectedYearForDonut ? "{% translate 'Año:'|escapejs %} " + selectedYearForDonut : ""),
                             periodoText: (selectedPeriodoForDonut ? "{% translate 'Periodo:'|escapejs %} " + selectedPeriodoForDonut : ""),
-                            color: '#29335C',
-                            fontStyle: 'bold',
-                            totalFontSize: 22, // Adjusted for smaller chart
-                            detailFontSize: 9, // Adjusted for smaller chart
-                            lineHeight: 1.2
+                            color: primaryColor, fontStyle: 'bold',
+                            totalFontSize: 24, detailFontSize: 10, lineHeight: 1.2 
                         }
                     }
                 },
-                plugins: [{ // Custom plugin implementation for centerText
+                plugins: [{ 
                     id: 'centerText',
                     beforeDraw: function(chart) {
                         const config = chart.config.options.plugins.centerText;
                         if (config.display && config.totalText !== undefined) {
-                            const ctx = chart.ctx;
-                            const centerX = (chart.chartArea.left + chart.chartArea.right) / 2;
-                            const centerY = (chart.chartArea.top + chart.chartArea.bottom) / 2;
-                            
-                            ctx.restore();
-                            let textLines = 0;
-                            if (config.yearText && selectedYearForDonut) textLines++;
-                            if (config.periodoText && selectedPeriodoForDonut) textLines++;
-
-                            let currentY = centerY - (config.totalFontSize / 2);
-                            if (textLines > 0) {
-                                currentY -= (config.detailFontSize * config.lineHeight * textLines) / 2;
-                            }
-
-
-                            ctx.font = config.fontStyle + " " + config.totalFontSize + "px Inter, sans-serif";
-                            ctx.textAlign = 'center';
-                            ctx.textBaseline = 'middle';
-                            ctx.fillStyle = config.color || '#000';
-                            ctx.fillText(config.totalText, centerX, currentY);
-                            
-                            currentY += config.totalFontSize * 0.5 + config.detailFontSize * config.lineHeight * 0.5;
-
-                            ctx.font = config.detailFontSize + "px Inter, sans-serif";
-                            ctx.fillStyle = '#6B7280'; 
-                            if(config.yearText && selectedYearForDonut) { 
-                                ctx.fillText(config.yearText, centerX, currentY);
-                                currentY += config.detailFontSize * config.lineHeight;
-                            }
-                            if(config.periodoText && selectedPeriodoForDonut) { 
-                                ctx.fillText(config.periodoText, centerX, currentY);
-                            }
+                            const ctx = chart.ctx; const area = chart.chartArea; if (!area) return; 
+                            const centerX = (area.left + area.right) / 2; const centerY = (area.top + area.bottom) / 2;
+                            ctx.restore(); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                            let yPos = centerY; const lines = [];
+                            if (config.totalText) lines.push({text: config.totalText, size: config.totalFontSize, style: config.fontStyle, color: config.color, isTotal: true});
+                            if (config.yearText && selectedYearForDonut) lines.push({text: config.yearText, size: config.detailFontSize, style: '', color: '#6B7280'});
+                            if (config.periodoText && selectedPeriodoForDonut) lines.push({text: config.periodoText, size: config.detailFontSize, style: '', color: '#6B7280'});
+                            const totalHeight = lines.reduce((sum, line) => sum + (line.size * config.lineHeight), 0) - (lines.length > 0 ? (lines[0].size * (config.lineHeight -1)) : 0) ;
+                            yPos = centerY - totalHeight / 2;
+                            lines.forEach(line => {
+                                yPos += (line.isTotal ? line.size * 0.5 : line.size * config.lineHeight * 0.5); 
+                                ctx.font = `${line.style || ''} ${line.size}px Inter, sans-serif`; ctx.fillStyle = line.color;
+                                ctx.fillText(line.text, centerX, yPos);
+                                yPos += (line.isTotal ? line.size * 0.5 : line.size * config.lineHeight * 0.5) + (line.size * 0.1); 
+                            });
                             ctx.save();
                         }
                     }
@@ -218,34 +194,13 @@
         const materiaCounts = JSON.parse('{{ chart_data_materia_counts_json|escapejs|default:"[]" }}');
         if (materiaCtx && materiaLabels.length > 0 && materiaCounts.length > 0) {
             new Chart(materiaCtx, {
-                type: 'bar',
-                data: {
-                    labels: materiaLabels,
-                    datasets: [{
-                        label: '{{ label_cantidad_raats|escapejs }}',
-                        data: materiaCounts,
-                        backgroundColor: getChartColors(materiaLabels, {}, defaultChartColors), // No specific map, use default
-                        borderColor: primaryBorderColor,
-                        borderWidth: primaryBorderWidth,
-                        borderRadius: 3,
-                    }]
-                },
-                options: {
-                    indexAxis: 'x',
-                    responsive: true, maintainAspectRatio: false,
-                    scales: {
-                        y: { beginAtZero: true, title: { display: true, text: '{{ label_cantidad|escapejs }}' } },
-                        x: { title: { display: true, text: '{{ label_materia|escapejs }}' }, ticks: { autoSkip: false, maxRotation: 45, minRotation: 30, font: {size: 10} } }
-                    },
-                    plugins: {
-                        legend: { display: false },
-                        tooltip: { enabled: true },
-                        datalabels: {
-                            anchor: 'end', align: 'top', offset: 4, // Increased offset
-                            color: '#374151', // Darker gray
-                            font: { weight: '600', size: 11 }, // Increased font size
-                            formatter: (value) => value > 0 ? value : '', // Hide label if value is 0
-                        }
+                type: 'bar', data: { labels: materiaLabels,
+                    datasets: [{ label: '{{ label_cantidad_raats|escapejs }}', data: materiaCounts, backgroundColor: primaryColor, borderColor: chartBorderColor, borderWidth: chartBorderWidth, borderRadius: 3, }]
+                }, options: { indexAxis: 'x', responsive: true, maintainAspectRatio: false,
+                    scales: { y: { beginAtZero: true, title: { display: true, text: '{{ label_cantidad|escapejs }}' } },
+                              x: { title: { display: true, text: '{{ label_materia|escapejs }}' }, ticks: { autoSkip: false, maxRotation: 45, minRotation: 30, font: {size: 11} } } 
+                    }, plugins: { legend: { display: false }, tooltip: { enabled: true },
+                        datalabels: { anchor: 'end', align: 'top', offset: 4, color: primaryColor, font: { weight: '600', size: 11 }, formatter: (v) => v > 0 ? v : '', } 
                     }
                 }
             });
@@ -258,52 +213,27 @@
         const gradoCounts = JSON.parse('{{ chart_data_grado_counts_json|escapejs|default:"[]" }}');
         if (gradoCtx && gradoLabels.length > 0 && gradoCounts.length > 0) {
             new Chart(gradoCtx, {
-                type: 'bar',
-                data: {
-                    labels: gradoLabels,
-                    datasets: [{
-                        label: '{{ label_cantidad_raats|escapejs }}',
-                        data: gradoCounts,
-                        backgroundColor: getChartColors(gradoLabels, gradoColorMap, defaultChartColors),
-                        borderColor: primaryBorderColor,
-                        borderWidth: primaryBorderWidth,
-                        borderRadius: { topRight: 3, bottomRight: 3, topLeft: 0, bottomLeft: 0 },
-                    }]
-                },
-                options: {
-                    indexAxis: 'y',
-                    responsive: true, maintainAspectRatio: false,
-                    scales: {
-                        x: { beginAtZero: true, title: { display: true, text: '{{ label_cantidad|escapejs }}' } },
-                        y: { title: { display: true, text: '{{ label_grado|escapejs }}' }, ticks: {font: {size: 10}} }
-                    },
-                    plugins: {
-                        legend: { display: false },
-                        tooltip: { enabled: true },
-                        datalabels: {
-                            anchor: 'center',
-                            align: 'center',
-                            color: function(context) { // Dynamic color for better contrast
-                                const bgColor = context.dataset.backgroundColor[context.dataIndex];
-                                if (!bgColor) return '#4B5563';
-                                let r, g, b;
-                                if (bgColor.startsWith('#')) {
-                                    const bigint = parseInt(bgColor.slice(1), 16);
-                                    r = (bigint >> 16) & 255; g = (bigint >> 8) & 255; b = bigint & 255;
-                                } else if (bgColor.startsWith('rgba')) {
-                                    const parts = bgColor.substring(bgColor.indexOf('(') + 1, bgColor.lastIndexOf(')')).split(/,\s*/);
-                                    r = parseInt(parts[0]); g = parseInt(parts[1]); b = parseInt(parts[2]);
-                                } else { return '#4B5563'; }
-                                const luminance = (0.299 * r + 0.587 * g + 0.114 * b);
-                                return luminance > 128 ? '#29335C' : '#FFFFFF'; // Dark text on light, White text on dark
-                            },
-                            font: { weight: 'bold', size: 11 }, // Increased font size
-                            formatter: (value) => value > 0 ? value : '',
-                            // Removed background for datalabels for a cleaner look, relying on text color for contrast
-                        }
+                type: 'bar', data: { labels: gradoLabels,
+                    datasets: [{ label: '{{ label_cantidad_raats|escapejs }}', data: gradoCounts, backgroundColor: getChartColors(gradoLabels, gradoUserColorMap), borderColor: chartBorderColor, borderWidth: chartBorderWidth, borderRadius: { topRight: 3, bottomRight: 3, topLeft: 0, bottomLeft: 0 }, }]
+                }, options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+                    scales: { x: { beginAtZero: true, title: { display: true, text: '{{ label_cantidad|escapejs }}' } },
+                              y: { title: { display: true, text: '{{ label_grado|escapejs }}' }, ticks: {font: {size: 10}} }
+                    }, plugins: { legend: { display: false }, tooltip: { enabled: true },
+                        datalabels: { anchor: 'end', align: 'right', offset: -4, color: '#FFFFFF', backgroundColor: primaryColor, borderRadius: 3, padding: { top: 2, bottom: 2, left: 4, right: 4 }, font: { weight: 'bold', size: 9 }, formatter: (v) => v > 0 ? v : '', }
                     }
                 }
             });
         }
+        const gradoChartInstance = Chart.getChart('raatByGradoChart');
+        if (gradoChartInstance) {
+            setTimeout(() => {
+                // Ensure the chart resizes to its container if the container's size was finalized after initial JS execution.
+                // This is particularly useful if flexbox or grid is still settling.
+                if (gradoChartInstance.canvas.offsetParent) { // Check if canvas is visible
+                     gradoChartInstance.resize();
+                }
+            }, 150); // Slightly increased delay
+        }
+
     })();
 </script>

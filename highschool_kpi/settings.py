@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'indicator_manager.apps.IndicatorManagerConfig',
+    'widget_tweaks',
     'rest_framework',
     'django_filters',
     'django_htmx',

@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{% block dashboard_title %}{% translate "Dashboard" %}{% endblock dashboard_title %}{% endblock title %}
+
+{% block extra_head %}
+    {{ block.super }}
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+    <style>
+        .chart-card { 
+            @apply bg-white p-3 sm:p-4 rounded-xl shadow-lg flex flex-col;
+            border: 1px solid #e5e7eb; 
+        }
+        .chart-title { 
+            @apply text-base sm:text-lg font-semibold text-gray-700 mb-2 text-center; 
+        }
+        .chart-canvas-container { 
+            position: relative; 
+            margin: auto;
+            width: 100%;
+        }
+        
+        body { background-color: #f5f5f5; }
+
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 3px;}
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #c7c7c7; border-radius: 3px;}
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #a3a3a3; }
+    </style>
+    {% block dashboard_extra_head %}{% endblock dashboard_extra_head %}
+{% endblock %}
+
+{% block breadcrumb %}
+<div class="mb-3"> {# User preferred mb-3 #}
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+        <div>
+            <h1 class="text-xl sm:text-2xl font-semibold text-primary flex items-center">
+                {% block dashboard_icon %}<i class="fas fa-chart-bar fa-fw mr-2 text-primary"></i>{% endblock dashboard_icon %}
+                <span>{% block dashboard_title_text %}{{ indicator_manager.description|default:_("Dashboard Overview") }}{% endblock dashboard_title_text %}</span>
+            </h1>
+        </div>
+        {% block dashboard_header_controls %}
+        {% endblock dashboard_header_controls %}
+    </div>
+</div>
+{% endblock breadcrumb %}
+
+{% block content %}
+<div class="space-y-6" id="dashboard-content-area">
+    {% block dashboard_content_body %}
+    {% endblock dashboard_content_body %}
+</div>
+{% endblock content %}
+
+{% block extra_scripts %}
+    {{ block.super }}
+    {% block dashboard_extra_scripts %}{% endblock dashboard_extra_scripts %}
+{% endblock %}

@@ -42,112 +42,97 @@ def get_chart_data(filters):
         "total_raat_count": total_raat_count,
     }
 
+from django.shortcuts import render, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.db.models import Count
+from .models import RAATData, Indicator 
+from .forms import RAATFilterForm # Make sure your form fields match the new IDs if using django-widget-tweaks or similar
+import datetime
+import json
+from django.utils.translation import gettext_lazy as _
+from django.forms.utils import flatatt # For adding attributes to form widgets if not using a library like widget_tweaks
+
 @login_required
 def raat_dashboard_view(request):
     current_year = datetime.date.today().year
-    # Query distinct years from data, ordered descending
     available_years_qs = RAATData.objects.values_list('year', flat=True).distinct().order_by('-year')
     available_years = [str(y) for y in available_years_qs]
-    
-    # Determine default year: current year if data exists, else most recent year with data, else current year
+    num_available_years = len(available_years) # For conditional display of year filter
+
     default_year = str(current_year) if str(current_year) in available_years else (available_years[0] if available_years else str(current_year))
     
-    # Determine default period: latest period for the default year, if any
     latest_period_with_data_qs = RAATData.objects.filter(year=int(default_year)).values_list('periodo', flat=True).order_by('-periodo')
     default_periodo = str(latest_period_with_data_qs.first()) if latest_period_with_data_qs.exists() else ''
 
-    # Initialize form data with GET parameters or defaults
+    # Initial data for the form (which populates the visible slicers via context)
     form_initial_data = {
         'year': request.GET.get('year', default_year),
         'periodo': request.GET.get('periodo', default_periodo),
-        'ciclo_local': request.GET.get('ciclo_local', ''), # For Materia chart filter
-        'grado_local': request.GET.get('grado_local', ''),   # For Materia chart filter
+        'ciclo_local': request.GET.get('ciclo_local', ''),
+        'grado_local': request.GET.get('grado_local', ''),
     }
-    filter_form = RAATFilterForm(form_initial_data) # Pass initial data to the form
+    # The form itself is now mostly for providing the widgets to the template.
+    # The actual selected values for HTMX request come from hidden fields updated by JS.
+    filter_form = RAATFilterForm(initial=form_initial_data)
 
-    # Get query parameters from the (potentially updated by GET) form_initial_data
-    query_year = int(form_initial_data['year']) if form_initial_data['year'] else None
-    query_periodo = int(form_initial_data['periodo']) if form_initial_data['periodo'] else None
-    query_ciclo_local = form_initial_data['ciclo_local']
-    query_grado_local = form_initial_data['grado_local']
 
-    # Base filters for database queries (Global: Year and Periodo)
+    # Query parameters are taken from GET request (which are from hidden fields populated by JS)
+    query_year_str = request.GET.get('year', default_year)
+    query_periodo_str = request.GET.get('periodo', default_periodo)
+    
+    query_year = int(query_year_str) if query_year_str else None
+    query_periodo = int(query_periodo_str) if query_periodo_str else None
+    query_ciclo_local = request.GET.get('ciclo_local', '') # From hidden field
+    query_grado_local = request.GET.get('grado_local', '') # From hidden field
+
+
     base_db_filters = {}
     if query_year: base_db_filters['year'] = query_year
     if query_periodo: base_db_filters['periodo'] = query_periodo
 
-    # --- Chart 1: Cantidad total y por ciclo (Donut Chart & Table) ---
-    # This chart is affected ONLY by global filters (Year, Periodo)
-    ciclo_chart_filters = base_db_filters.copy() 
+    try:
+        current_indicator = Indicator.objects.get(number=6) 
+    except Indicator.DoesNotExist:
+        current_indicator = None
+
+    ciclo_chart_filters = base_db_filters.copy()
     ciclo_data_qs = RAATData.objects.filter(**ciclo_chart_filters)\
         .values('ciclo')\
         .annotate(count=Count('id'))\
-        .order_by('ciclo') # Initial order, will be custom sorted for the table later
+        .order_by('ciclo')
     
-    ciclo_labels_from_db = []
-    ciclo_counts_from_db = []
-    # Define colors for cycles - can be expanded
-    ciclo_color_map_view = { 
-        'PRE': '#A1D99B', # Light Green
-        'PRO': '#6BAED6', # Light Blue
-        'EXP': '#FD8D3C', # Orange
-        'INI': '#FFFFB3', # Light Yellow
-        'PRI': '#FB8072', # Light Red/Pink
-        'SEC': '#80B1D3', # Another Light Blue
-        'N/A': '#D1D5DB', # Gray
-    }
+    ciclo_color_map_view = { 'PRE': '#CCEBCF', 'PRO': '#65C0CC', 'EXP': '#1A72AE', 'N/A': '#D1D5DB', }
+    custom_ciclo_order = ['PRE', 'PRO', 'EXP', 'N/A'] 
 
-    temp_ciclo_data_map = {} # To hold data before custom sorting for the table
+    temp_ciclo_data_map = {}
     for item in ciclo_data_qs:
         label = item['ciclo'] if item['ciclo'] else "N/A"
+        if label not in custom_ciclo_order and label != "N/A": 
+             label = "N/A" 
         count = item['count']
-        # For the donut chart, order might not be critical, but we can build it consistently
-        ciclo_labels_from_db.append(label)
-        ciclo_counts_from_db.append(count)
-        temp_ciclo_data_map[label] = count
+        temp_ciclo_data_map[label] = temp_ciclo_data_map.get(label, 0) + count 
             
-    total_raat_count_for_period = sum(ciclo_counts_from_db)
+    total_raat_count_for_period = sum(temp_ciclo_data_map.values())
     
-    # Custom sort order for the table display
-    custom_ciclo_order = ['PRE', 'PRO', 'EXP', 'INI', 'PRI', 'SEC', 'N/A'] # Add other cycles as needed
-    ciclo_table_data = []
-    
-    # Data for Donut Chart (can use the order from DB or also apply custom sort if legend order matters)
-    # For simplicity, using DB order for donut labels/counts here.
-    # If specific order is needed for donut slices/legend, apply custom_ciclo_order to ciclo_labels_from_db and ciclo_counts_from_db too.
+    ciclo_table_data = [] # This is not used for table anymore, but data is prepared for donut
     final_ciclo_labels_for_donut = []
     final_ciclo_counts_for_donut = []
 
     for ciclo_key in custom_ciclo_order:
         if ciclo_key in temp_ciclo_data_map:
             count = temp_ciclo_data_map[ciclo_key]
-            percentage = (count / total_raat_count_for_period * 100) if total_raat_count_for_period > 0 else 0
-            ciclo_table_data.append({
-                'ciclo': ciclo_key,
-                'cantidad': count,
-                'porcentaje': round(percentage),
-                'color': ciclo_color_map_view.get(ciclo_key, '#CCCCCC') 
-            })
+            # percentage = (count / total_raat_count_for_period * 100) if total_raat_count_for_period > 0 else 0
+            # ciclo_table_data.append({ ... }) # No longer needed for table
             final_ciclo_labels_for_donut.append(ciclo_key)
             final_ciclo_counts_for_donut.append(count)
 
-    # Handle cycles from DB not in custom_ciclo_order (append them at the end)
     for label, count in temp_ciclo_data_map.items():
-        if label not in custom_ciclo_order:
-            percentage = (count / total_raat_count_for_period * 100) if total_raat_count_for_period > 0 else 0
-            ciclo_table_data.append({
-                'ciclo': label,
-                'cantidad': count,
-                'porcentaje': round(percentage),
-                'color': ciclo_color_map_view.get(label, '#CCCCCC')
-            })
-            if label not in final_ciclo_labels_for_donut: # Ensure not duplicated if already added
-                 final_ciclo_labels_for_donut.append(label)
-                 final_ciclo_counts_for_donut.append(count)
+        if label not in final_ciclo_labels_for_donut: 
+            # percentage = (count / total_raat_count_for_period * 100) if total_raat_count_for_period > 0 else 0
+            # ciclo_table_data.append({ ... }) # No longer needed for table
+            final_ciclo_labels_for_donut.append(label)
+            final_ciclo_counts_for_donut.append(count)
 
-
-    # --- Chart 2: Cantidad de RAAT por materia (Vertical Bar) ---
-    # This chart IS affected by local filters (Ciclo Local, Grado Local) in addition to global
     materia_chart_filters = base_db_filters.copy()
     if query_ciclo_local: materia_chart_filters['ciclo'] = query_ciclo_local
     if query_grado_local: materia_chart_filters['grado'] = query_grado_local
@@ -155,56 +140,47 @@ def raat_dashboard_view(request):
     materia_data_qs = RAATData.objects.filter(**materia_chart_filters)\
         .values('area')\
         .annotate(count=Count('id'))\
-        .order_by('-count')[:15] # Top 15 materias
+        .order_by('-count')[:15]
     materia_labels = [item['area'] if item['area'] else _("N/A") for item in materia_data_qs]
     materia_counts = [item['count'] for item in materia_data_qs]
 
-    # --- Chart 3: Cantidad por grado (Horizontal Bar) ---
-    # This chart is affected ONLY by global filters (Year, Periodo).
-    # **CORRECTION**: It should NOT be filtered by query_ciclo_local from the Materia chart's slicer.
     grado_chart_filters = base_db_filters.copy()
-    # REMOVED: if query_ciclo_local: grado_chart_filters['ciclo'] = query_ciclo_local
-    
-    # Define the desired order for grados
-    grado_order = ['1P','2P','3P','4P','5P','6P', '1S', '2S', '3S', '4S', '5S', '6S'] # Example order, adjust as needed
+    grado_order = ['6P', '1S', '2S', '3S', '4S', '5S', '6S'] 
     
     grado_data_qs = RAATData.objects.filter(**grado_chart_filters)\
         .values('grado')\
         .annotate(count=Count('id'))
     
-    # Convert QuerySet to a dictionary for easy lookup and ordering
-    grado_data_dict = {item['grado']: item['count'] for item in grado_data_qs}
-    
+    grado_data_dict = {}
+    for item in grado_data_qs:
+        grado_val = item['grado']
+        if grado_val in grado_order:
+            grado_data_dict[grado_val] = grado_data_dict.get(grado_val, 0) + item['count']
+
     grado_labels_ordered = []
     grado_counts_ordered = []
     for grado_key in grado_order:
-        if grado_key in grado_data_dict and grado_data_dict[grado_key] > 0: # Only include grados with data
+        if grado_key in grado_data_dict and grado_data_dict[grado_key] > 0:
             grado_labels_ordered.append(grado_key)
             grado_counts_ordered.append(grado_data_dict[grado_key])
     
-    # Optionally, add any grados from data_dict not in grado_order (e.g., 'N/A')
-    for grado_db, count_db in grado_data_dict.items():
-        if grado_db not in grado_labels_ordered and count_db > 0:
-            grado_labels_ordered.append(grado_db if grado_db else _("N/A"))
-            grado_counts_ordered.append(count_db)
-
-
     context = {
-        'filter_form': filter_form,
+        'filter_form': filter_form, # Still needed to render the filter widgets
+        'indicator_manager': current_indicator, 
+        'num_available_years': num_available_years, # Added for conditional year filter display
         'chart_data_materia_labels_json': json.dumps(materia_labels),
         'chart_data_materia_counts_json': json.dumps(materia_counts),
         'chart_data_grado_labels_json': json.dumps(grado_labels_ordered),
         'chart_data_grado_counts_json': json.dumps(grado_counts_ordered),
-        'chart_data_ciclo_labels_json': json.dumps(final_ciclo_labels_for_donut), # Use sorted for donut if desired
-        'chart_data_ciclo_counts_json': json.dumps(final_ciclo_counts_for_donut), # Use sorted for donut if desired
+        'chart_data_ciclo_labels_json': json.dumps(final_ciclo_labels_for_donut),
+        'chart_data_ciclo_counts_json': json.dumps(final_ciclo_counts_for_donut),
         'chart_data_total_raat': total_raat_count_for_period,
-        'ciclo_table_data': ciclo_table_data, # This is now custom sorted
-        'ciclo_color_map_json': json.dumps(ciclo_color_map_view),
-        'selected_year': query_year,
-        'selected_periodo': query_periodo,
+        # 'ciclo_table_data': ciclo_table_data, # No longer used for a table
+        'ciclo_color_map_json': json.dumps(ciclo_color_map_view), 
+        'selected_year': query_year_str, # Pass string versions for initial form population
+        'selected_periodo': query_periodo_str,
         'selected_ciclo_local': query_ciclo_local, 
         'selected_grado_local': query_grado_local,
-        # Translations for chart labels (can be moved to template if preferred)
         'label_cantidad_raats': _("Cantidad de RAATs"), 
         'label_cantidad': _("Cantidad"),
         'label_materia': _("Materia"), 
@@ -213,10 +189,8 @@ def raat_dashboard_view(request):
     }
 
     if request.htmx:
-        # For HTMX requests, render only the partial containing the charts and local filters
         return render(request, 'indicator_manager/_raat_charts_and_local_filters_partial.html', context)
     
-    # For initial page load, render the full dashboard
     return render(request, 'indicator_manager/raat_dashboard.html', context)
 
 
