@@ -153,8 +153,11 @@ REST_FRAMEWORK = {
 
 STATIC_URL = 'static/'
 
-# This is where collectstatic will gather all static files
-STATIC_ROOT = BASE_DIR / 'staticfiles' # Or os.path.join(BASE_DIR, 'staticfiles')
+STATICFILES_DIRS = (
+    os.path.join(BASE_DIR, 'expenseswebsite', 'static'),
+)
+
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 # For unique filenames for cache-busting (recommended)
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
