@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% translate "Crear Cuenta" %}{% endblock title %}
+
+{% block extra_head %}
+    <style>
+        .strength-meter {
+            height: 6px; background: #e2e8f0; /* gray-200 */
+            border-radius: 3px;
+        }
+        .strength-meter-fill {
+            height: 100%; border-radius: 3px;
+            transition: width 0.3s ease-in-out, background-color 0.3s ease-in-out;
+        }
+    </style>
+{% endblock %}
+
+
+{% block content %}
+<div class="flex items-center justify-center min-h-[calc(100vh-200px)] py-12 px-4 sm:px-6 lg:px-8">
+    <div class="w-full max-w-lg p-8 space-y-6 bg-white rounded-2xl shadow-xl"
+         x-data="{ 
+            password: '', 
+            passwordConfirmation: '', 
+            passwordVisible: false,
+            strength: { score: 0, text: '', color: 'bg-gray-200' },
+            get passwordsMatch() { 
+                if (!this.passwordConfirmation) return true;
+                return this.password === this.passwordConfirmation;
+            },
+            calculateStrength() {
+                let score = 0;
+                if (!this.password) {
+                    this.strength = { score: 0, text: '', color: 'bg-gray-200' };
+                    return;
+                }
+                if (this.password.length >= 8) score++;
+                if (this.password.match(/[a-z]/)) score++;
+                if (this.password.match(/[A-Z]/)) score++;
+                if (this.password.match(/[0-9]/)) score++;
+                if (this.password.match(/[^a-zA-Z0-9]/)) score++;
+
+                switch(score) {
+                    case 0: case 1: case 2: this.strength = { score: score, text: '{% translate "Débil" %}', color: 'bg-red-500' }; break;
+                    case 3: this.strength = { score: score, text: '{% translate "Aceptable" %}', color: 'bg-yellow-500' }; break;
+                    case 4: this.strength = { score: score, text: '{% translate "Buena" %}', color: 'bg-blue-500' }; break;
+                    case 5: this.strength = { score: score, text: '{% translate "Fuerte" %}', color: 'bg-green-500' }; break;
+                }
+            }
+         }">
+        
+        <h2 class="text-3xl font-bold text-center text-gray-900">Crear Nueva Cuenta</h2>
+        
+        <form method="post" class="space-y-4">
+            {% csrf_token %}
+            
+            {# Django messages are now rendered in the base template, they will appear above #}
+            
+            {# Because we are manually rendering fields to add Alpine.js, #}
+            {# we now iterate through form fields to ensure all errors are displayed. #}
+            {# Django automatically populates form.<field_name>.errors #}
+
+            {# Username #}
+            <div>
+                <label for="{{ form.username.id_for_label }}" class="block text-sm font-medium text-gray-700">{{ form.username.label }}</label>
+                <input type="text" name="{{ form.username.name }}" id="{{ form.username.id_for_label }}" required
+                       class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary focus:border-primary sm:text-sm"
+                       value="{{ form.username.value|default:'' }}">
+                {% if form.username.help_text %}<p class="mt-1 text-xs text-gray-500">{{ form.username.help_text|safe }}</p>{% endif %}
+                {% for error in form.username.errors %}<p class="mt-1 text-sm text-red-600">{{ error }}</p>{% endfor %}
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label for="{{ form.first_name.id_for_label }}" class="block text-sm font-medium text-gray-700">{{ form.first_name.label }}</label>
+                    <input type="text" name="{{ form.first_name.name }}" id="{{ form.first_name.id_for_label }}"
+                           class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary focus:border-primary sm:text-sm"
+                           value="{{ form.first_name.value|default:'' }}">
+                    {% for error in form.first_name.errors %}<p class="mt-1 text-sm text-red-600">{{ error }}</p>{% endfor %}
+                </div>
+                 <div>
+                    <label for="{{ form.last_name.id_for_label }}" class="block text-sm font-medium text-gray-700">{{ form.last_name.label }}</label>
+                    <input type="text" name="{{ form.last_name.name }}" id="{{ form.last_name.id_for_label }}"
+                           class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary focus:border-primary sm:text-sm"
+                           value="{{ form.last_name.value|default:'' }}">
+                    {% for error in form.last_name.errors %}<p class="mt-1 text-sm text-red-600">{{ error }}</p>{% endfor %}
+                </div>
+            </div>
+
+            {# Email #}
+            <div>
+                <label for="{{ form.email.id_for_label }}" class="block text-sm font-medium text-gray-700">{{ form.email.label }}</label>
+                <input type="email" name="{{ form.email.name }}" id="{{ form.email.id_for_label }}" required
+                       class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary focus:border-primary sm:text-sm"
+                       value="{{ form.email.value|default:'' }}">
+                {% if form.email.help_text %}<p class="mt-1 text-xs text-gray-500">{{ form.email.help_text|safe }}</p>{% endif %}
+                {% for error in form.email.errors %}<p class="mt-1 text-sm text-red-600">{{ error }}</p>{% endfor %}
+            </div>
+
+            {# Invite Code #}
+            <div>
+                <label for="{{ form.invite_code.id_for_label }}" class="block text-sm font-medium text-gray-700">{{ form.invite_code.label }}</label>
+                <input type="text" name="{{ form.invite_code.name }}" id="{{ form.invite_code.id_for_label }}" required
+                       class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary focus:border-primary sm:text-sm"
+                       value="{{ form.invite_code.value|default:'' }}">
+                {% if form.invite_code.help_text %}<p class="mt-1 text-xs text-gray-500">{{ form.invite_code.help_text|safe }}</p>{% endif %}
+                {% for error in form.invite_code.errors %}<p class="mt-1 text-sm text-red-600">{{ error }}</p>{% endfor %}
+            </div>
+
+            {# Password 1 #}
+            <div>
+                <label for="{{ form.password1.id_for_label }}" class="block text-sm font-medium text-gray-700">{{ form.password1.label }}</label>
+                <div class="mt-1 relative">
+                    <input :type="passwordVisible ? 'text' : 'password'" name="{{ form.password1.name }}" id="{{ form.password1.id_for_label }}" required x-model="password" @input="calculateStrength"
+                        class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-primary focus:border-primary sm:text-sm">
+                    <button type="button" @click="passwordVisible = !passwordVisible" class="absolute inset-y-0 right-0 pr-3 flex items-center text-sm leading-5 text-gray-500 hover:text-gray-700">
+                        <i class="fas" :class="{'fa-eye': !passwordVisible, 'fa-eye-slash': passwordVisible}"></i>
+                    </button>
+                </div>
+                <div class="mt-2" x-show="password">
+                    <div class="strength-meter">
+                        <div class="strength-meter-fill" :class="strength.color" :style="{ width: (strength.score * 20) + '%' }"></div>
+                    </div>
+                    <p class="text-xs mt-1" :class="{
+                        'text-red-500': strength.score <= 2,
+                        'text-yellow-500': strength.score === 3,
+                        'text-blue-500': strength.score === 4,
+                        'text-green-500': strength.score === 5
+                    }" x-text="strength.text"></p>
+                </div>
+                {% if form.password1.help_text %}<p class="mt-1 text-xs text-gray-500">{{ form.password1.help_text|safe }}</p>{% endif %}
+                {% for error in form.password1.errors %}<p class="mt-1 text-sm text-red-600">{{ error }}</p>{% endfor %}
+            </div>
+
+            {# Password 2 (Confirmation) #}
+            <div>
+                <label for="{{ form.password2.id_for_label }}" class="block text-sm font-medium text-gray-700">{{ form.password2.label }}</label>
+                <input :type="passwordVisible ? 'text' : 'password'" name="{{ form.password2.name }}" id="{{ form.password2.id_for_label }}" required x-model="passwordConfirmation"
+                       class="mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:ring-primary focus:border-primary sm:text-sm"
+                       :class="passwordsMatch ? 'border-gray-300' : 'border-red-500'">
+                <p x-show="!passwordsMatch" class="mt-1 text-sm text-red-600">{% translate "Las contraseñas no coinciden." %}</p>
+                {% for error in form.password2.errors %}<p class="mt-1 text-sm text-red-600">{{ error }}</p>{% endfor %}
+            </div>
+            
+            <div class="pt-2">
+                <button type="submit"
+                        class="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-primary-text bg-primary hover:bg-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 ring-primary">
+                    Crear Cuenta
+                </button>
+            </div>
+        </form>
+        <p class="text-sm text-center text-gray-600">
+            ¿Ya tiene una cuenta? <a href="{% url 'login' %}" class="font-medium text-primary hover:underline">Inicie Sesión</a>
+        </p>
+    </div>
+</div>
+{% endblock content %}

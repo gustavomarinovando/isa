@@ -4,6 +4,7 @@ from django.utils.translation import gettext_lazy as _
 from django.core.exceptions import ValidationError
 import re
 import datetime
+import uuid
 
 class Month(models.Model):
     SPANISH_MONTH_CHOICES = [
@@ -114,3 +115,17 @@ class RAATData(models.Model):
             models.Index(fields=['year', 'periodo', 'grado', 'paralelo']),
             models.Index(fields=['year', 'periodo', 'area']),
         ]
+
+class RegistrationInvite(models.Model):
+    code = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    email = models.EmailField(max_length=255, unique=True, help_text=_("Correo electrónico al que se envía la invitación. Debe ser único."))
+    is_used = models.BooleanField(default=False, verbose_name=_("¿Ha sido usado?"))
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_("Fecha de Creación"))
+
+    def __str__(self):
+        return f"Invitación para {self.email} - Usado: {'Sí' if self.is_used else 'No'}"
+
+    class Meta:
+        verbose_name = _("Invitación de Registro")
+        verbose_name_plural = _("Invitaciones de Registro")
+        ordering = ['-created_at']

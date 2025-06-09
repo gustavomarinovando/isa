@@ -1,7 +1,7 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm 
 from django.contrib.auth.models import User 
-from .models import Month, AcademicObjective, SGCObjective, Indicator
+from .models import Month, AcademicObjective, SGCObjective, Indicator, IndicatorChangeLog, RAATData, RegistrationInvite
 from django.utils.translation import gettext_lazy as _
 import datetime
 
@@ -13,11 +13,65 @@ class IndicatorFilterForm(forms.Form):
     has_dashboard_filter = forms.BooleanField(required=False,label="Tiene Dashboard", widget=forms.CheckboxInput(attrs={'class': 'h-5 w-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500 mr-2'}))
     def __init__(self, *args, **kwargs): super().__init__(*args, **kwargs)
 
-class CustomUserCreationForm(UserCreationForm):
-    email = forms.EmailField(required=True, help_text='Requerido. Ingrese un correo válido.')
-    first_name = forms.CharField(required=False, label="Nombres")
-    last_name = forms.CharField(required=False, label="Apellidos")
-    class Meta(UserCreationForm.Meta): model = User; fields = UserCreationForm.Meta.fields + ('email', 'first_name', 'last_name',)
+
+class RegistrationForm(UserCreationForm):
+    # --- FIX: Rename 'password' to 'password1' ---
+    password1 = forms.CharField(
+        label=_("Contraseña"), 
+        widget=forms.PasswordInput
+    )
+    password2 = forms.CharField(
+        label=_("Confirmar contraseña"), 
+        widget=forms.PasswordInput
+    )
+
+    email = forms.EmailField(
+        label=_("Correo Electrónico"),
+        required=True, 
+        help_text=_('Requerido. Use el correo al que se envió la invitación.')
+    )
+    first_name = forms.CharField(required=False, label=_("Nombres"))
+    last_name = forms.CharField(required=False, label=_("Apellidos"))
+    invite_code = forms.CharField(
+        label=_("Código de Invitación"),
+        help_text=_("Ingrese el código de invitación que recibió.")
+    )
+
+    class Meta(UserCreationForm.Meta):
+        model = User
+        fields = ("username", "first_name", "last_name", "email",)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # You can remove the manual labeling from __init__ as it's now handled above
+        self.fields['username'].label = _("Nombre de Usuario")
+
+    # The rest of your form (clean and save methods) remains the same.
+    def clean(self):
+        cleaned_data = super().clean()
+        code = cleaned_data.get('invite_code')
+        email = cleaned_data.get('email')
+
+        if code and email: 
+            try:
+                invite = RegistrationInvite.objects.get(code=code)
+                if invite.email.lower() != email.lower():
+                    self.add_error('invite_code', _("Este código de invitación no es válido para este correo electrónico."))
+                if invite.is_used:
+                    self.add_error('invite_code', _("Este código de invitación ya ha sido utilizado."))
+            except (RegistrationInvite.DoesNotExist, ValueError):
+                self.add_error('invite_code', _("Código de invitación no válido o no encontrado."))
+        
+        return cleaned_data
+
+    def save(self, commit=True):
+        user = super().save(commit=commit)
+        if commit:
+            code = self.cleaned_data.get('invite_code')
+            invite = RegistrationInvite.objects.get(code=code)
+            invite.is_used = True
+            invite.save()
+        return user
 
 class IndicatorDataUploadForm(forms.Form):
     data_file = forms.FileField(

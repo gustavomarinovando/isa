@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.utils.translation import gettext_lazy as _ 
 from django.utils.html import format_html
-from .models import Month, AcademicObjective, SGCObjective, Indicator, User, IndicatorChangeLog, RAATData # Added RAATData
+from .models import Month, AcademicObjective, SGCObjective, Indicator, User, IndicatorChangeLog, RAATData, RegistrationInvite
 
 @admin.register(Month)
 class MonthAdmin(admin.ModelAdmin):
@@ -119,3 +119,15 @@ class IndicatorAdmin(admin.ModelAdmin):
             return format_html("<a href='{url}' target='_blank'>{text}</a>", url=obj.external_file_url, text=_("Ver Archivo"))
         return _("N/A")
     external_file_url_link_admin.short_description = _("Enlace Archivo Ext.")
+
+@admin.register(RegistrationInvite)
+class RegistrationInviteAdmin(admin.ModelAdmin):
+    list_display = ('code', 'email', 'created_at', 'is_used')
+    readonly_fields = ('code', 'created_at')
+    list_filter = ('is_used',)
+    search_fields = ('email', 'code')
+    actions = ['mark_as_unused']
+
+    @admin.action(description=_("Marcar seleccionados como NO usados"))
+    def mark_as_unused(self, request, queryset):
+        queryset.update(is_used=False)
