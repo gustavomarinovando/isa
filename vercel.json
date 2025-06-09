@@ -11,11 +11,8 @@
     ],
     "routes": [
         {
-            "src": "/static/(.*)",
-            "headers": {
-                "Cache-Control": "public, max-age=31536000, immutable"
-            },
-            "dest": "/staticfiles/$1"
+            "src": "/assets/(.*)",
+            "dest": "/assets/$1"
         },
         {
             "src": "/media/(.*)",
