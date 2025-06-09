@@ -20,7 +20,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Static files (CSS, JavaScript, Images)
 
 # URL prefix for serving static files
-STATIC_URL = '/static/'
+STATIC_URL = '/staticfiles/'
 
 # Additional directories to search for static files
 STATICFILES_DIRS = [
