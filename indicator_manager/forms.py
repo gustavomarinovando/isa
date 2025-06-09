@@ -9,7 +9,14 @@ class IndicatorFilterForm(forms.Form):
     search_text = forms.CharField(required=False, widget=forms.TextInput(attrs={'placeholder': 'Buscar por N°, nombre, o descripción...','class': 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 text-sm'}),label="") 
     shown_to_board = forms.BooleanField(required=False, label="Presenta a Directorio", widget=forms.CheckboxInput(attrs={'class': 'h-5 w-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500 mr-2'}))
     review_month = forms.ModelMultipleChoiceField(queryset=Month.objects.all().order_by('number'), required=False, label="Meses de Revisión", widget=forms.CheckboxSelectMultiple(attrs={'class': 'text-blue-600 border-gray-300 rounded focus:ring-blue-500 mr-1 align-middle' }))
-    responsible_persons = forms.ModelMultipleChoiceField(queryset=User.objects.filter(is_active=True).order_by('username'), required=False,label="Personas Responsables", widget=forms.CheckboxSelectMultiple(attrs={'class': 'text-blue-600 border-gray-300 rounded focus:ring-blue-500 mr-1 align-middle'}))
+    responsible_persons = forms.ModelMultipleChoiceField( 
+        queryset=User.objects.filter(is_active=True, is_superuser=False).order_by('username'), 
+        required=False,
+        label="Personas Responsables", 
+        widget=forms.CheckboxSelectMultiple(attrs={ 
+            'class': 'text-blue-600 border-gray-300 rounded focus:ring-blue-500 mr-1 align-middle'
+        })
+    )
     has_dashboard_filter = forms.BooleanField(required=False,label="Tiene Dashboard", widget=forms.CheckboxInput(attrs={'class': 'h-5 w-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500 mr-2'}))
     def __init__(self, *args, **kwargs): super().__init__(*args, **kwargs)
 

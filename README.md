@@ -1,10 +1,10 @@
 # Sistema de Gestión de Indicadores Académicos (SGIA) - Colegio San Agustín
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+![Vercel Deploy](https://deploy-badge.vercel.app/vercel/reactions-demo) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 Una aplicación web robusta construida con Django para centralizar, gestionar y visualizar los Indicadores Clave de Rendimiento del Colegio San Agustín.
 
-![Dashboard Principal del SGIA](assets/fig_main_dashboard.png)
+![Dashboard Principal del SGIA](https://i.ibb.co/b5FWfbBM/fig-main-dashboard.png)
 
 ---
 
@@ -185,4 +185,4 @@ Consulte la "Propuesta de Continuidad y Expansión" para una hoja de ruta más d
 
 Gustavo Marin Ovando - gustavomarinovando@gmail.com
 
-Enlace del Proyecto: [SGIA](https://github.com/gustavomarinovando/isa)
+Enlace del Repositorio: [SGIA](https://github.com/gustavomarinovando/isa)
