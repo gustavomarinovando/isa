@@ -20,15 +20,16 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Static files (CSS, JavaScript, Images)
 
 # URL prefix for serving static files
-STATIC_URL = '/staticfiles/'
+STATIC_URL = '/static/'
+
+# Directory where static files will be collected for production
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 # Additional directories to search for static files
 STATICFILES_DIRS = [
     os.path.join(BASE_DIR, 'assets'),
+    os.path.join(BASE_DIR, 'static'),
 ]
-
-# Directory where static files will be collected for production
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 # Storage backend for static files (optional)
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
