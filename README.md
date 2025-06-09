@@ -4,7 +4,7 @@
 
 Una aplicación web robusta construida con Django para centralizar, gestionar y visualizar los Indicadores Clave de Rendimiento del Colegio San Agustín.
 
-![Dashboard Principal del SGIA](https://i.ibb.co/b5FWfbBM/fig-main-dashboard.png)
+![Dashboard Principal del SGIA](assets/fig_main_dashboard.png)
 
 ---
 
