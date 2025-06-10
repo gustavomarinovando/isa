@@ -388,7 +388,7 @@ class IndicatorUpdateView(LoginRequiredMixin, UserPassesTestMixin, generic.Updat
         form.fields['review_months'].queryset = Month.objects.all().order_by('number')
         form.fields['review_months'].help_text = "Seleccione los meses de revisión."
         form.fields['responsible_persons'].widget = forms.CheckboxSelectMultiple()
-        form.fields['responsible_persons'].queryset = User.objects.filter(is_active=True).order_by('username')
+        form.fields['responsible_persons'].queryset = User.objects.filter(is_active=True, is_superuser=False).order_by('username')
         form.fields['responsible_persons'].help_text = "Seleccione las personas responsables."
         form.fields['data_ingestion_model_name'].widget.attrs.update({'placeholder': "Ej: RAATData (Nombre del Modelo)"})
         form.fields['data_format_instructions'].widget = forms.Textarea(attrs={'rows': 4, 'placeholder': "Ej: Columnas: Profesor, Periodo, CantidadRAAT. Formato: .xlsx"})
